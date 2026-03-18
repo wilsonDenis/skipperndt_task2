@@ -9,8 +9,9 @@ else:
     APPAREIL = torch.device('cpu')
 
 RACINE_PROJET           = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOSSIER_DONNEES         = os.path.join(RACINE_PROJET, 'data', 'nettoye')
-DOSSIER_DONNEES_REELLES = os.path.join(RACINE_PROJET, 'real_data')
+RACINE_DONNEES          = os.path.join(os.path.dirname(RACINE_PROJET), 'skipperndt')
+DOSSIER_DONNEES         = os.path.join(RACINE_DONNEES, 'data', 'nettoye')
+DOSSIER_DONNEES_REELLES = os.path.join(RACINE_DONNEES, 'real_data')
 FICHIER_CSV             = os.path.join(DOSSIER_DONNEES_REELLES, 'pipe_presence_width_detection_label.csv')
 DOSSIER_RESULTATS       = os.path.join(RACINE_PROJET, 'resultats')
 

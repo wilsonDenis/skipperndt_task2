@@ -97,3 +97,22 @@ python main.py
 | MAX_SEQ_LEN      | 3000   | Longueur max de sequence                 |
 | hidden_size      | 64     | Taille etat cache LSTM (par direction)   |
 | num_layers       | 2      | Nombre de couches LSTM empilees          |
+
+## Resultats
+
+Evaluation sur 1751 fichiers (1700 synthetiques, 51 reels).
+
+| Jeu de donnees    | MAE     | RMSE    |
+|-------------------|:-------:|:-------:|
+| Val Synthetique   | 10.86 m | 19.89 m |
+| Test Reel         |  4.49 m |  6.37 m |
+
+### Comparaison des approches
+
+| Modele          | MAE (Test Reel) |
+|-----------------|:---------------:|
+| CNN Regression  | 14.91 m         |
+| LSTM (ce modele)|  4.49 m         |
+| Mesure Physique |  2.40 m         |
+
+Le LSTM reduit l'erreur du CNN de 70% et se rapproche de la mesure physique directe.
