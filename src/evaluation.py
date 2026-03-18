@@ -21,7 +21,7 @@ def evaluer(modele, chargeur, width_mean, width_std, largeurs_vraies, nom=''):
     mae     = np.mean(np.abs(preds_m - largeurs_vraies))
     rmse    = np.sqrt(np.mean((preds_m - largeurs_vraies) ** 2))
 
-    print(f'\n  [{nom}] MAE: {mae:.2f}m | RMSE: {rmse:.2f}m')
+    print(f'comme resultat du [{nom}] MAE: {mae:.2f}m | RMSE: {rmse:.2f}m')
     for i in range(min(10, len(preds_m))):
         print(f'    Predit: {preds_m[i]:6.1f}m | Vrai: {largeurs_vraies[i]:6.1f}m | Err: {abs(preds_m[i]-largeurs_vraies[i]):5.1f}m')
 
