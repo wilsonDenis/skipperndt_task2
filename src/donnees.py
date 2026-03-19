@@ -127,19 +127,29 @@ def creer_dataloaders(sequences, larg_norm, larg_brut, metas, est_reel):
     idx_synth = np.where(~est_reel)[0]
     idx_reel  = np.where(est_reel)[0]
 
-    idx_train, idx_val = train_test_split(idx_synth, test_size=0.15, random_state=42)
+    # Split synthétiques : 85% train, 15% val
+    idx_train_s, idx_val_s = train_test_split(idx_synth, test_size=0.15, random_state=42)
+
+    # Split réels : 60% test, 20% train, 20% val
+    idx_reel_test, idx_reel_tv = train_test_split(idx_reel, test_size=0.40, random_state=42)
+    idx_reel_train, idx_reel_val = train_test_split(idx_reel_tv, test_size=0.50, random_state=42)
+
+    idx_train = np.concatenate([idx_train_s, idx_reel_train])
+    idx_val   = np.concatenate([idx_val_s,   idx_reel_val])
 
     ds_train = DatasetLSTM(
         [sequences[i] for i in idx_train], larg_norm[idx_train], metas[idx_train])
     ds_val   = DatasetLSTM(
         [sequences[i] for i in idx_val],   larg_norm[idx_val],   metas[idx_val])
     ds_reel  = DatasetLSTM(
-        [sequences[i] for i in idx_reel],  larg_norm[idx_reel],  metas[idx_reel])
+        [sequences[i] for i in idx_reel_test], larg_norm[idx_reel_test], metas[idx_reel_test])
 
     dl_train = DataLoader(ds_train, batch_size=TAILLE_LOT, shuffle=True,  collate_fn=collate_fn)
     dl_val   = DataLoader(ds_val,   batch_size=TAILLE_LOT, shuffle=False, collate_fn=collate_fn)
     dl_reel  = DataLoader(ds_reel,  batch_size=TAILLE_LOT, shuffle=False, collate_fn=collate_fn)
 
-    print(f'\n  Train: {len(ds_train)}  |  Val: {len(ds_val)}  |  Test reel: {len(ds_reel)}')
+    print(f'\n  Train: {len(ds_train)} (dont {len(idx_reel_train)} reels)'
+          f'  |  Val: {len(ds_val)} (dont {len(idx_reel_val)} reels)'
+          f'  |  Test reel: {len(ds_reel)}')
 
-    return dl_train, dl_val, dl_reel, idx_val, idx_reel
+    return dl_train, dl_val, dl_reel, idx_val, idx_reel_test
