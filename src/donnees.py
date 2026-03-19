@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from src.config import (
     FICHIER_CSV, DOSSIER_DONNEES, DOSSIER_DONNEES_REELLES,
-    SEUIL_MASK, MAX_SEQ_LEN, TAILLE_LOT,
+    MAX_SEQ_LEN, TAILLE_LOT,
 )
 
 
@@ -29,15 +29,15 @@ def extraire_sequence(chemin_fichier):
         return np.zeros(10, dtype=np.float32), [0.0, float(h), float(w)]
 
     norme_n = (norme / norme.max()).astype(np.float32)
-    mask    = norme_n >= SEUIL_MASK
-    valeurs = norme_n[mask]
-    valeurs = np.sort(valeurs)[::-1]
+
+    # Profil moyen par colonne : capture la variation spatiale sur toute la largeur
+    valeurs = norme_n.mean(axis=0)
 
     if len(valeurs) > MAX_SEQ_LEN:
         indices = np.linspace(0, len(valeurs) - 1, MAX_SEQ_LEN, dtype=int)
         valeurs = valeurs[indices]
 
-    nb_pix = float(mask.sum())
+    nb_pix = float(norme_n.size)
     return valeurs, [nb_pix, float(h), float(w)]
 
 
