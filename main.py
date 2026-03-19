@@ -30,7 +30,7 @@ def main():
     print('  EVALUATION')
     print()
 
-    mae_val,  _ = evaluer(modele, dl_val,  w_mean, w_std, larg_brut[idx_val],  'Val Synthetique')
+    mae_val,  _ = evaluer(modele, dl_val,  w_mean, w_std, larg_brut[idx_val],  'Val (Synth+Reel)')
     mae_reel, _ = evaluer(modele, dl_reel, w_mean, w_std, larg_brut[idx_reel], 'Test Reel')
 
     afficher_comparaison(mae_val, mae_reel)
