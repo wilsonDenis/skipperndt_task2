@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from sklearn.model_selection import train_test_split
+from scipy.ndimage import center_of_mass
 
 from src.config import (
     FICHIER_CSV, DOSSIER_DONNEES, DOSSIER_DONNEES_REELLES,
@@ -30,15 +31,17 @@ def extraire_sequence(chemin_fichier):
 
     norme_n = (norme / norme.max()).astype(np.float32)
 
-    # Profil moyen par colonne : capture la variation spatiale sur toute la largeur
-    valeurs = norme_n.mean(axis=0)
+    # Profil centré : 5 lignes autour du centre de masse du signal
+    centre_y, _ = center_of_mass(norme_n)
+    centre_y = int(np.clip(centre_y, 2, h - 3))
+    valeurs = norme_n[centre_y - 2 : centre_y + 3, :].mean(axis=0)
 
     if len(valeurs) > MAX_SEQ_LEN:
         indices = np.linspace(0, len(valeurs) - 1, MAX_SEQ_LEN, dtype=int)
         valeurs = valeurs[indices]
 
-    nb_pix = float(norme_n.size)
-    return valeurs, [nb_pix, float(h), float(w)]
+    nb_pix = float((norme_n > 0).sum())
+    return valeurs.astype(np.float32), [nb_pix, float(h), float(w)]
 
 
 def precomputer_donnees():
