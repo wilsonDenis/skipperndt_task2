@@ -1,7 +1,25 @@
+"""
+donnees.py
+----------
+Chargement, extraction et mise en forme des données pour le modèle LSTM.
+
+Pipeline de traitement :
+1. Lecture d'un fichier .npz et calcul de la norme des canaux magnétiques.
+2. Localisation du centre de masse du signal pour extraire un profil 1D centré.
+3. Construction du Dataset PyTorch et des DataLoaders (train / val / test).
+
+Répartition des données :
+- Synthétiques : 85 % train, 15 % val.
+- Réelles      : 20 % train, 20 % val, 60 % test.
+"""
+
 import os
+from typing import Tuple, List
+
 import numpy as np
 import pandas as pd
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from sklearn.model_selection import train_test_split
@@ -13,18 +31,34 @@ from src.config import (
 )
 
 
-def extraire_sequence(chemin_fichier):
-    data = np.load(chemin_fichier)
-    key  = 'data' if 'data' in data.files else data.files[0]
-    mat  = data[key].astype(np.float64)
-    mat  = np.nan_to_num(mat, nan=0.0)
+def extraire_sequence(
+    chemin_fichier: str,
+) -> Tuple[np.ndarray, List[float]]:
+    """Extrait un profil d'intensité 1D centré sur le pipe depuis un fichier .npz.
 
-    if mat.ndim == 2:
-        norme = np.abs(mat)
-    else:
-        norme = np.sqrt(np.sum(mat ** 2, axis=2))
+    Le profil est calculé en faisant la moyenne de 5 lignes autour du centre
+    de masse du signal magnétique normalisé. Cette approche préserve l'information
+    d'intensité nulle (zone du pipe) contrairement à un tri par intensité.
 
-    h, w = norme.shape
+    Parameters
+    ----------
+    chemin_fichier : str
+        Chemin vers le fichier .npz contenant les données magnétiques.
+
+    Returns
+    -------
+    profil : np.ndarray
+        Tableau 1D de forme (L,) avec L <= MAX_SEQ_LEN.
+    meta : list[float]
+        Métadonnées [nb_pixels_actifs, hauteur, largeur].
+    """
+    data    = np.load(chemin_fichier)
+    key     = 'data' if 'data' in data.files else data.files[0]
+    mat     = data[key].astype(np.float64)
+    mat     = np.nan_to_num(mat, nan=0.0)
+
+    norme   = np.abs(mat) if mat.ndim == 2 else np.sqrt(np.sum(mat ** 2, axis=2))
+    h, w    = norme.shape
 
     if norme.max() == 0:
         return np.zeros(10, dtype=np.float32), [0.0, float(h), float(w)]
@@ -33,8 +67,8 @@ def extraire_sequence(chemin_fichier):
 
     # Profil centré : 5 lignes autour du centre de masse du signal
     centre_y, _ = center_of_mass(norme_n)
-    centre_y = int(np.clip(centre_y, 2, h - 3))
-    valeurs = norme_n[centre_y - 2 : centre_y + 3, :].mean(axis=0)
+    centre_y    = int(np.clip(centre_y, 2, h - 3))
+    valeurs     = norme_n[centre_y - 2 : centre_y + 3, :].mean(axis=0)
 
     if len(valeurs) > MAX_SEQ_LEN:
         indices = np.linspace(0, len(valeurs) - 1, MAX_SEQ_LEN, dtype=int)
@@ -44,15 +78,39 @@ def extraire_sequence(chemin_fichier):
     return valeurs.astype(np.float32), [nb_pix, float(h), float(w)]
 
 
-def precomputer_donnees():
+def precomputer_donnees() -> Tuple[
+    List[Tensor], np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, float
+]:
+    """Charge et prépare l'ensemble des données (synthétiques + réelles).
+
+    Lit le fichier CSV de labels, extrait les séquences depuis les fichiers .npz
+    et normalise les largeurs et métadonnées.
+
+    Returns
+    -------
+    sequences : list[Tensor]
+        Liste de tenseurs de forme (L, 1) pour chaque exemple.
+    larg_norm : np.ndarray
+        Largeurs normalisées (z-score).
+    largeurs : np.ndarray
+        Largeurs brutes en mètres.
+    metas : np.ndarray
+        Métadonnées normalisées de forme (N, 3).
+    est_reel : np.ndarray
+        Masque booléen True si la donnée est réelle.
+    width_mean : float
+        Moyenne des largeurs brutes.
+    width_std : float
+        Écart-type des largeurs brutes.
+    """
     print(f'Lecture du CSV : {FICHIER_CSV}')
     df      = pd.read_csv(FICHIER_CSV, sep=';', keep_default_na=False)
     df_pipe = df[df['label'] == 1].copy()
 
-    sequences = []
-    largeurs  = []
-    metas     = []
-    est_reel  = []
+    sequences: List[Tensor] = []
+    largeurs:  List[float]  = []
+    metas:     List[List[float]] = []
+    est_reel:  List[bool]   = []
 
     print(f'  Extraction des sequences ({len(df_pipe)} fichiers)...')
     compteur = 0
@@ -64,11 +122,11 @@ def precomputer_donnees():
         except (ValueError, TypeError):
             continue
 
-        if nom.startswith('real_data'):
-            chemin = os.path.join(DOSSIER_DONNEES_REELLES, nom)
-        else:
-            chemin = os.path.join(DOSSIER_DONNEES, 'avec_fourreau', nom)
-
+        chemin = (
+            os.path.join(DOSSIER_DONNEES_REELLES, nom)
+            if nom.startswith('real_data')
+            else os.path.join(DOSSIER_DONNEES, 'avec_fourreau', nom)
+        )
         if not os.path.exists(chemin):
             continue
 
@@ -82,35 +140,52 @@ def precomputer_donnees():
         if compteur % 200 == 0:
             print(f'    {compteur} fichiers traites...')
 
-    largeurs = np.array(largeurs, dtype=np.float32)
-    metas    = np.array(metas,    dtype=np.float32)
-    est_reel = np.array(est_reel)
+    largeurs_arr = np.array(largeurs, dtype=np.float32)
+    metas_arr    = np.array(metas,    dtype=np.float32)
+    est_reel_arr = np.array(est_reel)
 
-    meta_mean = metas.mean(axis=0)
-    meta_std  = metas.std(axis=0) + 1e-8
-    metas     = (metas - meta_mean) / meta_std
+    meta_mean = metas_arr.mean(axis=0)
+    meta_std  = metas_arr.std(axis=0) + 1e-8
+    metas_arr = (metas_arr - meta_mean) / meta_std
 
-    width_mean  = largeurs.mean()
-    width_std   = largeurs.std()
-    larg_norm   = (largeurs - width_mean) / width_std
+    width_mean = float(largeurs_arr.mean())
+    width_std  = float(largeurs_arr.std())
+    larg_norm  = (largeurs_arr - width_mean) / width_std
 
     print(f'  {compteur} sequences extraites.')
     print(f'  Largeur : mean={width_mean:.2f}m  std={width_std:.2f}m')
-    print(f'  Synthetiques: {(~est_reel).sum()}  |  Reels: {est_reel.sum()}')
+    print(f'  Synthetiques: {(~est_reel_arr).sum()}  |  Reels: {est_reel_arr.sum()}')
 
-    return sequences, larg_norm, largeurs, metas, est_reel, width_mean, width_std
+    return sequences, larg_norm, largeurs_arr, metas_arr, est_reel_arr, width_mean, width_std
 
 
 class DatasetLSTM(Dataset):
-    def __init__(self, sequences, largeurs, metas):
+    """Dataset PyTorch pour les séquences LSTM.
+
+    Parameters
+    ----------
+    sequences : list[Tensor]
+        Séquences d'entrée de forme (L, 1).
+    largeurs : np.ndarray
+        Largeurs normalisées cibles.
+    metas : np.ndarray
+        Métadonnées normalisées de forme (N, 3).
+    """
+
+    def __init__(
+        self,
+        sequences: List[Tensor],
+        largeurs: np.ndarray,
+        metas: np.ndarray,
+    ) -> None:
         self.sequences = sequences
         self.largeurs  = largeurs
         self.metas     = metas
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.sequences)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor, int]:
         return (
             self.sequences[idx],
             torch.tensor(self.largeurs[idx], dtype=torch.float32),
@@ -119,22 +194,69 @@ class DatasetLSTM(Dataset):
         )
 
 
-def collate_fn(batch):
+def collate_fn(
+    batch: List[Tuple[Tensor, Tensor, Tensor, int]],
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    """Fonction de collation : padde les séquences à la longueur maximale du lot.
+
+    Parameters
+    ----------
+    batch : list
+        Liste de tuples (séquence, largeur, meta, longueur).
+
+    Returns
+    -------
+    Tuple contenant séquences paddées, largeurs, metas et longueurs.
+    """
     sequences, largeurs, metas, longueurs = zip(*batch)
-    longueurs        = torch.tensor(longueurs, dtype=torch.long)
+    longueurs_t      = torch.tensor(longueurs, dtype=torch.long)
     sequences_padded = pad_sequence(sequences, batch_first=True, padding_value=0.0)
-    return sequences_padded, torch.stack(largeurs), torch.stack(metas), longueurs
+    return sequences_padded, torch.stack(largeurs), torch.stack(metas), longueurs_t
 
 
-def creer_dataloaders(sequences, larg_norm, larg_brut, metas, est_reel):
+def creer_dataloaders(
+    sequences: List[Tensor],
+    larg_norm: np.ndarray,
+    larg_brut: np.ndarray,
+    metas: np.ndarray,
+    est_reel: np.ndarray,
+) -> Tuple[DataLoader, DataLoader, DataLoader, np.ndarray, np.ndarray]:
+    """Crée les DataLoaders train / val / test avec mélange réel + synthétique.
+
+    Répartition :
+    - Synthétiques : 85 % train, 15 % val.
+    - Réelles      : 20 % train, 20 % val, 60 % test.
+
+    Parameters
+    ----------
+    sequences : list[Tensor]
+        Toutes les séquences.
+    larg_norm : np.ndarray
+        Largeurs normalisées.
+    larg_brut : np.ndarray
+        Largeurs brutes (non utilisées ici, passées par cohérence d'interface).
+    metas : np.ndarray
+        Métadonnées normalisées.
+    est_reel : np.ndarray
+        Masque booléen indiquant les données réelles.
+
+    Returns
+    -------
+    dl_train, dl_val, dl_reel : DataLoader
+        Chargeurs de données pour l'entraînement, la validation et le test.
+    idx_val : np.ndarray
+        Indices (dans le tableau global) des exemples de validation.
+    idx_reel_test : np.ndarray
+        Indices des exemples réels réservés au test.
+    """
     idx_synth = np.where(~est_reel)[0]
     idx_reel  = np.where(est_reel)[0]
 
-    # Split synthétiques : 85% train, 15% val
+    # Split synthétiques : 85 % train, 15 % val
     idx_train_s, idx_val_s = train_test_split(idx_synth, test_size=0.15, random_state=42)
 
-    # Split réels : 60% test, 20% train, 20% val
-    idx_reel_test, idx_reel_tv = train_test_split(idx_reel, test_size=0.40, random_state=42)
+    # Split réels : 60 % test, 20 % train, 20 % val
+    idx_reel_test, idx_reel_tv   = train_test_split(idx_reel, test_size=0.40, random_state=42)
     idx_reel_train, idx_reel_val = train_test_split(idx_reel_tv, test_size=0.50, random_state=42)
 
     idx_train = np.concatenate([idx_train_s, idx_reel_train])

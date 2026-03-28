@@ -1,82 +1,91 @@
-# Tache 2 - Estimation de la Largeur de Zone Magnetique (LSTM)
+# Tâche 2 — Estimation de la Largeur de Zone Magnétique (LSTM)
 
-Estimation de la largeur effective de la zone d'influence magnetique a partir
-de cartes de champ magnetique 4 canaux, en utilisant un **LSTM bidirectionnel**.
+Estimation de la largeur effective de la zone d'influence magnétique d'un pipe
+à partir de cartes de champ magnétique 4 canaux, en utilisant un **LSTM bidirectionnel**.
 
-## Probleme
+## Problème
 
-**Type** : Regression
-**Entree** : images TIF/NPZ multicanaux (4 canaux : Bx, By, Bz, Norme)
-**Sortie** : largeur en metres (plage : 5 a 80 m)
-**Objectif** : MAE < 1 m
+| Propriété | Valeur |
+|-----------|--------|
+| Type | Régression supervisée |
+| Entrée | Fichiers `.npz` multicanaux (4 canaux : Bx, By, Bz, Norme) |
+| Sortie | Largeur en mètres (plage : 5 à 80 m) |
+| Objectif | MAE < 1 m |
 
 ## Approche LSTM
 
-Contrairement au CNN qui redimensionne l'image a 224x224 (perte d'echelle),
-le LSTM travaille sur une **sequence 1D** extraite de la carte magnetique :
+Contrairement au CNN qui redimensionne l'image à 224×224 (perte d'échelle physique),
+le LSTM travaille sur un **profil 1D centré** extrait de la carte magnétique :
 
-1. Calculer la norme des 4 canaux
-2. Normaliser entre 0 et 1
-3. Masquer les pixels sous 10% d'intensite (peu informatifs)
-4. Trier par intensite decroissante -> sequence de longueur variable
-5. Enrichir avec 3 meta-features : nb pixels actifs, hauteur, largeur de l'image
+1. Calcul de la norme des 4 canaux magnétiques
+2. Normalisation entre 0 et 1
+3. Localisation du centre de masse du signal (scipy `center_of_mass`)
+4. Extraction d'une tranche de 5 lignes autour de ce centre
+5. Moyenne colonne par colonne → séquence 1D de longueur variable
+6. Enrichissement avec 3 métadonnées : nb pixels actifs, hauteur, largeur image
 
-Le LSTM traite cette sequence et predit la largeur. Avantage : l'information
-d'echelle physique (1 pixel = 20 cm) est preservee.
+L'information d'échelle physique (1 pixel ≈ 20 cm) est ainsi préservée.
 
 ## Architecture
 
 ```
-Sequence (L, 1)  +  Meta (3,)
+Séquence (L, 1)  +  Meta (3,)
         |
    LSTM bidirectionnel
    hidden_size=64, num_layers=2, dropout=0.3
         |
-   Concatenation etat cache [avant | arriere] + meta
-   Taille : 64*2 + 3 = 131
+   Concaténation états cachés [avant | arrière] + meta
+   Taille : 64×2 + 3 = 131
         |
-   MLP : Linear(131, 64) -> ReLU -> Dropout(0.3)
-      -> Linear(64, 32)  -> ReLU
-      -> Linear(32, 1)
+   MLP : Linear(131, 64) → ReLU → Dropout(0.3)
+      → Linear(64, 32)   → ReLU
+      → Linear(32, 1)
         |
-   Largeur predite (metres)
+   Largeur prédite (mètres)
 ```
 
 ## Structure du projet
 
 ```
 tache2_lstm/
-├── main.py                  # Point d'entree : charge, entraine, evalue
+├── main.py                  # Point d'entrée : charge, entraîne, évalue
+├── requirements.txt         # Dépendances Python
 ├── src/
-│   ├── config.py            # Hyperparametres et chemins
-│   ├── donnees.py           # Extraction sequences + Dataset + DataLoaders
+│   ├── config.py            # Hyperparamètres et chemins
+│   ├── donnees.py           # Extraction séquences + Dataset + DataLoaders
 │   ├── modele.py            # Architecture LSTMWidth
-│   ├── entrainement.py      # Boucle d'entrainement + early stopping
-│   └── evaluation.py        # Metriques MAE/RMSE + graphiques
-├── data/
-│   └── nettoye/
-│       └── avec_fourreau/   # Fichiers .npz synthetiques (a placer ici)
-├── real_data/               # Fichiers .npz reels + CSV de labels (a placer ici)
-└── resultats/               # Genere automatiquement
+│   ├── entrainement.py      # Boucle d'entraînement + early stopping
+│   └── evaluation.py        # Métriques MAE/RMSE + graphiques
+└── resultats/               # Généré automatiquement
     ├── modele_lstm_width.pth
     └── courbes_lstm_width.png
 ```
 
-## Donnees requises
+## Données requises
 
-Les donnees ne sont pas incluses. Placer dans les dossiers :
+Les données ne sont pas incluses dans ce dépôt. Le projet attend la structure suivante
+**en dehors** du dossier `tache2_lstm/`, dans un dossier frère `skipperndt/` :
 
 ```
-data/nettoye/avec_fourreau/   <- fichiers .npz synthetiques avec fourreau
-real_data/                    <- fichiers .npz reels + pipe_presence_width_detection_label.csv
+skipperndt/
+├── data/nettoye/avec_fourreau/   ← fichiers .npz synthétiques
+└── real_data/
+    ├── pipe_presence_width_detection_label.csv
+    └── real_data_*.npz           ← fichiers .npz réels
 ```
 
-Le CSV doit avoir les colonnes : `field_file`, `label`, `width_m`
+Le CSV doit contenir les colonnes : `field_file`, `label`, `width_m`.
 
 ## Installation
 
 ```bash
-pip install torch torchvision numpy pandas matplotlib scikit-learn
+pip install -r requirements.txt
+```
+
+Ou manuellement :
+
+```bash
+pip install torch numpy pandas matplotlib scikit-learn scipy
 ```
 
 ## Utilisation
@@ -85,34 +94,47 @@ pip install torch torchvision numpy pandas matplotlib scikit-learn
 python main.py
 ```
 
-## Hyperparametres
+Le script affiche les métriques à chaque époque et sauvegarde dans `resultats/` :
+- `modele_lstm_width.pth` — poids du meilleur modèle
+- `courbes_lstm_width.png` — courbe d'apprentissage train/val
 
-| Parametre        | Valeur | Description                              |
-|------------------|:------:|------------------------------------------|
-| NOMBRE_EPOQUES   | 50     | Maximum d'epoques                        |
-| TAILLE_LOT       | 32     | Batch size                               |
-| TAUX_APPRENTISSAGE | 0.001 | Learning rate (Adam)                    |
-| PATIENCE         | 10     | Early stopping                           |
-| SEUIL_MASK       | 0.10   | Seuil d'intensite pour garder un pixel   |
-| MAX_SEQ_LEN      | 3000   | Longueur max de sequence                 |
-| hidden_size      | 64     | Taille etat cache LSTM (par direction)   |
-| num_layers       | 2      | Nombre de couches LSTM empilees          |
+## Hyperparamètres
 
-## Resultats
+| Paramètre          | Valeur | Description                            |
+|--------------------|:------:|----------------------------------------|
+| NOMBRE_EPOQUES     | 50     | Maximum d'époques                      |
+| TAILLE_LOT         | 32     | Batch size                             |
+| TAUX_APPRENTISSAGE | 0.001  | Learning rate initial (Adam)           |
+| PATIENCE           | 10     | Early stopping                         |
+| MAX_SEQ_LEN        | 3000   | Longueur max de séquence (colonnes)    |
+| hidden_size        | 64     | Taille état caché LSTM (par direction) |
+| num_layers         | 2      | Nombre de couches LSTM empilées        |
 
-Evaluation sur 1751 fichiers (1700 synthetiques, 51 reels).
+## Répartition des données
 
-| Jeu de donnees    | MAE     | RMSE    |
+| Ensemble      | Données synthétiques | Données réelles |
+|---------------|:--------------------:|:---------------:|
+| Entraînement  | 85 %                 | 20 %            |
+| Validation    | 15 %                 | 20 %            |
+| Test          | —                    | 60 %            |
+
+## Résultats
+
+| Jeu de données    | MAE     | RMSE    |
 |-------------------|:-------:|:-------:|
-| Val Synthetique   | 10.86 m | 19.89 m |
-| Test Reel         |  4.49 m |  6.37 m |
+| Val (Synth+Réel)  | —       | —       |
+| Test Réel         | 4.49 m  | 6.37 m  |
 
 ### Comparaison des approches
 
-| Modele          | MAE (Test Reel) |
-|-----------------|:---------------:|
-| CNN Regression  | 14.91 m         |
-| LSTM (ce modele)|  4.49 m         |
-| Mesure Physique |  2.40 m         |
+| Modèle           | MAE (Test Réel) |
+|------------------|:---------------:|
+| CNN Régression   | 14.91 m         |
+| **LSTM (ce modèle)** | **4.49 m**  |
+| Mesure Physique  | 2.40 m          |
 
-Le LSTM reduit l'erreur du CNN de 70% et se rapproche de la mesure physique directe.
+Le LSTM réduit l'erreur du CNN de **70 %** et se rapproche de la mesure physique directe.
+
+## Contributeurs
+
+- **Wilson Denis Bahun** — HETIC, promotion 2025

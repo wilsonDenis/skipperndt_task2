@@ -1,3 +1,18 @@
+"""
+main.py
+-------
+Point d'entrée du projet Tâche 2 — Estimation de la largeur d'un pipe par LSTM.
+
+Exécution :
+    python main.py
+
+Étapes :
+1. Chargement et prétraitement des données (synthétiques + réelles).
+2. Création des DataLoaders (train / val / test).
+3. Instanciation et entraînement du modèle LSTMWidth.
+4. Évaluation et affichage des métriques finales.
+"""
+
 import sys
 import os
 
@@ -10,10 +25,9 @@ from src.entrainement import entrainer
 from src.evaluation   import evaluer, afficher_courbes, afficher_comparaison
 
 
-def main():
-  
+def main() -> None:
+    """Lance le pipeline complet : chargement, entraînement et évaluation."""
     print('  TACHE 2 : ESTIMATION LARGEUR PAR LSTM')
-    
 
     sequences, larg_norm, larg_brut, metas, est_reel, w_mean, w_std = \
         precomputer_donnees()
@@ -26,6 +40,7 @@ def main():
 
     historique = entrainer(modele, dl_train, dl_val)
     afficher_courbes(historique)
+
     print()
     print('  EVALUATION')
     print()
