@@ -1,41 +1,41 @@
 """
 config.py
 ---------
-Hyperparamètres d'entraînement et chemins vers les données et résultats.
-L'appareil de calcul (CUDA, MPS ou CPU) est détecté automatiquement.
+Training hyperparameters and paths to data and results directories.
+The compute device (CUDA, MPS or CPU) is detected automatically.
 """
 
 import os
 import torch
 
 # ---------------------------------------------------------------------------
-# Appareil de calcul
+# Compute device
 # ---------------------------------------------------------------------------
 if torch.cuda.is_available():
-    APPAREIL = torch.device('cuda')
+    DEVICE = torch.device('cuda')
 elif torch.backends.mps.is_available():
-    APPAREIL = torch.device('mps')
+    DEVICE = torch.device('mps')
 else:
-    APPAREIL = torch.device('cpu')
+    DEVICE = torch.device('cpu')
 
 # ---------------------------------------------------------------------------
-# Chemins
+# Paths
 # ---------------------------------------------------------------------------
-RACINE_PROJET           = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RACINE_DONNEES          = os.path.join(os.path.dirname(RACINE_PROJET), 'skipperndt')
-DOSSIER_DONNEES         = os.path.join(RACINE_DONNEES, 'data', 'nettoye')
-DOSSIER_DONNEES_REELLES = os.path.join(RACINE_DONNEES, 'real_data')
-FICHIER_CSV             = os.path.join(DOSSIER_DONNEES_REELLES, 'pipe_presence_width_detection_label.csv')
-DOSSIER_RESULTATS       = os.path.join(RACINE_PROJET, 'resultats')
+PROJECT_ROOT  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_ROOT     = os.path.join(os.path.dirname(PROJECT_ROOT), 'skipperndt')
+DATA_DIR      = os.path.join(DATA_ROOT, 'data', 'nettoye')
+REAL_DATA_DIR = os.path.join(DATA_ROOT, 'real_data')
+CSV_FILE      = os.path.join(REAL_DATA_DIR, 'pipe_presence_width_detection_label.csv')
+RESULTS_DIR   = os.path.join(PROJECT_ROOT, 'resultats')
 
-os.makedirs(DOSSIER_RESULTATS, exist_ok=True)
-os.makedirs(DOSSIER_DONNEES,   exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+os.makedirs(DATA_DIR,    exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# Hyperparamètres d'entraînement
+# Training hyperparameters
 # ---------------------------------------------------------------------------
-NOMBRE_EPOQUES     : int   = 50      # Nombre maximum d'époques
-TAILLE_LOT         : int   = 32      # Taille des mini-lots (batch size)
-TAUX_APPRENTISSAGE : float = 0.001   # Learning rate initial (Adam)
-PATIENCE           : int   = 10      # Patience pour l'early stopping
-MAX_SEQ_LEN        : int   = 3000    # Longueur maximale de séquence (colonnes)
+NUM_EPOCHS    : int   = 50      # Maximum number of training epochs
+BATCH_SIZE    : int   = 32      # Mini-batch size
+LEARNING_RATE : float = 0.001   # Initial learning rate (Adam)
+PATIENCE      : int   = 10      # Early stopping patience (epochs)
+MAX_SEQ_LEN   : int   = 3000    # Maximum profile length (columns)

@@ -1,11 +1,11 @@
 """
 evaluation.py
 -------------
-Fonctions d'évaluation et de visualisation des résultats du modèle LSTMWidth.
+Evaluation and visualisation functions for the LSTMWidth model.
 
-Métriques calculées :
-- MAE  (Mean Absolute Error) en mètres.
-- RMSE (Root Mean Square Error) en mètres.
+Metrics computed:
+- MAE  (Mean Absolute Error) in metres.
+- RMSE (Root Mean Square Error) in metres.
 """
 
 import os
@@ -17,105 +17,103 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from src.config import APPAREIL, DOSSIER_RESULTATS
+from src.config import DEVICE, RESULTS_DIR
 
 
 @torch.no_grad()
-def evaluer(
-    modele: nn.Module,
-    chargeur: DataLoader,
-    width_mean: float,
-    width_std: float,
-    largeurs_vraies: np.ndarray,
-    nom: str = '',
+def evaluate(
+    model        : nn.Module,
+    dataloader   : DataLoader,
+    width_mean   : float,
+    width_std    : float,
+    true_widths  : np.ndarray,
+    name         : str = '',
 ) -> Tuple[float, float]:
-    """Évalue le modèle sur un jeu de données et affiche les métriques.
+    """Evaluate the model on a dataset and print metrics.
 
-    Les prédictions normalisées sont dénormalisées avant le calcul des métriques
-    afin d'obtenir des erreurs en mètres.
+    Normalised predictions are denormalised before computing metrics,
+    so that errors are expressed in metres.
 
     Parameters
     ----------
-    modele : nn.Module
-        Modèle entraîné à évaluer.
-    chargeur : DataLoader
-        DataLoader du jeu à évaluer (val ou test).
+    model : nn.Module
+        Trained model to evaluate.
+    dataloader : DataLoader
+        DataLoader of the dataset to evaluate (val or test).
     width_mean : float
-        Moyenne des largeurs brutes (pour dénormalisation).
+        Mean of raw widths (for denormalisation).
     width_std : float
-        Écart-type des largeurs brutes (pour dénormalisation).
-    largeurs_vraies : np.ndarray
-        Valeurs réelles de largeur en mètres, dans le même ordre que le chargeur.
-    nom : str
-        Nom du jeu affiché dans les logs (ex. 'Test Reel').
+        Standard deviation of raw widths (for denormalisation).
+    true_widths : np.ndarray
+        Ground-truth widths in metres, in the same order as the dataloader.
+    name : str
+        Dataset name displayed in logs (e.g. 'Real Test').
 
     Returns
     -------
     mae : float
-        Erreur absolue moyenne en mètres.
+        Mean Absolute Error in metres.
     rmse : float
-        Racine de l'erreur quadratique moyenne en mètres.
+        Root Mean Square Error in metres.
     """
-    modele.eval()
-    preds_all: List[float] = []
+    model.eval()
+    all_preds: List[float] = []
 
-    for seqs, largs, metas, longs in chargeur:
-        seqs  = seqs.to(APPAREIL)
-        metas = metas.to(APPAREIL)
-        preds = modele(seqs, longs, metas)
-        preds_all.extend(preds.cpu().numpy())
+    for seqs, _, metas, lengths in dataloader:
+        seqs  = seqs.to(DEVICE)
+        metas = metas.to(DEVICE)
+        preds = model(seqs, lengths, metas)
+        all_preds.extend(preds.cpu().numpy())
 
-    preds_m = np.array(preds_all) * width_std + width_mean
-    mae     = float(np.mean(np.abs(preds_m - largeurs_vraies)))
-    rmse    = float(np.sqrt(np.mean((preds_m - largeurs_vraies) ** 2)))
+    preds_m = np.array(all_preds) * width_std + width_mean
+    mae     = float(np.mean(np.abs(preds_m - true_widths)))
+    rmse    = float(np.sqrt(np.mean((preds_m - true_widths) ** 2)))
 
-    print(f'comme resultat du [{nom}] MAE: {mae:.2f}m | RMSE: {rmse:.2f}m')
+    print(f'[{name}] MAE: {mae:.2f}m | RMSE: {rmse:.2f}m')
     for i in range(min(10, len(preds_m))):
         print(
-            f'    Predit: {preds_m[i]:6.1f}m | '
-            f'Vrai: {largeurs_vraies[i]:6.1f}m | '
-            f'Err: {abs(preds_m[i] - largeurs_vraies[i]):5.1f}m'
+            f'    Predicted: {preds_m[i]:6.1f}m | '
+            f'True: {true_widths[i]:6.1f}m | '
+            f'Error: {abs(preds_m[i] - true_widths[i]):5.1f}m'
         )
 
     return mae, rmse
 
 
-def afficher_courbes(historique: Dict[str, List[float]]) -> None:
-    """Génère et sauvegarde la courbe d'apprentissage (train vs val).
+def plot_curves(history: Dict[str, List[float]]) -> None:
+    """Generate and save the learning curve (train vs val loss).
 
     Parameters
     ----------
-    historique : dict
-        Dictionnaire avec les clés 'perte_train' et 'perte_val'.
+    history : dict
+        Dictionary with keys 'train_loss' and 'val_loss'.
     """
     plt.figure(figsize=(8, 5))
-    plt.plot(historique['perte_train'], label='Train')
-    plt.plot(historique['perte_val'],   label='Val')
-    plt.title('LSTM Width - Perte')
-    plt.xlabel('Epoque')
-    plt.ylabel('MSE')
+    plt.plot(history['train_loss'], label='Train')
+    plt.plot(history['val_loss'],   label='Val')
+    plt.title('LSTM Width — Learning Curve')
+    plt.xlabel('Epoch')
+    plt.ylabel('MSE Loss')
     plt.legend()
     plt.grid(alpha=0.3)
     plt.savefig(
-        os.path.join(DOSSIER_RESULTATS, 'courbes_lstm_width.png'),
+        os.path.join(RESULTS_DIR, 'lstm_width_curves.png'),
         dpi=150, bbox_inches='tight',
     )
     plt.close()
 
 
-def afficher_comparaison(mae_val: float, mae_reel: float) -> None:
-    """Affiche un tableau comparatif des approches.
+def print_comparison(mae_real: float) -> None:
+    """Print a comparison table of the different approaches.
 
     Parameters
     ----------
-    mae_val : float
-        MAE du modèle LSTM sur le jeu de validation.
-    mae_reel : float
-        MAE du modèle LSTM sur le jeu de test réel.
+    mae_real : float
+        LSTM model MAE on the real test set.
     """
     print()
-    print('  COMPARAISON')
+    print('  COMPARISON')
     print()
-    print(f'  CNN Regression   : MAE = 14.91 m')
-    print(f'  Mesure Physique  : MAE =  2.40 m')
-    print(f'  LSTM (ce modele) : MAE = {mae_reel:.2f} m')
+    print(f'  CNN Regression    : MAE = 14.91 m')
+    print(f'  Physical Measure  : MAE =  2.40 m')
+    print(f'  LSTM (this model) : MAE = {mae_real:.2f} m')
