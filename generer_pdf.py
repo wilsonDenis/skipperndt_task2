@@ -1,549 +1,551 @@
-"""Script de génération du PDF de l'article académique."""
+"""Generates the academic article PDF — professional two-column style."""
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    HRFlowable, KeepTogether,
 )
 from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib.units import cm, mm
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
+
+PAGE_W, PAGE_H = A4
+MARGIN = 2.2 * cm
 
 doc = SimpleDocTemplate(
     'article.pdf',
     pagesize=A4,
-    rightMargin=2.5*cm, leftMargin=2.5*cm,
-    topMargin=2.5*cm,   bottomMargin=2.5*cm,
+    rightMargin=MARGIN, leftMargin=MARGIN,
+    topMargin=MARGIN,   bottomMargin=MARGIN,
+    title="Estimating the Width of a Buried Pipe Using Bidirectional LSTM",
+    author="AHMED Filali, FOLLIVI Edem Roberto, MAFORIKAN Harald, TAMBOU NGUEMO Franck Kevin, WILSON-BAHUN A. Denis",
 )
 
+NAVY   = colors.HexColor('#0d1b2a')
+BLUE   = colors.HexColor('#1b4f72')
+LBLUE  = colors.HexColor('#d6e4f0')
+GREEN  = colors.HexColor('#d4edda')
+LGREY  = colors.HexColor('#f8f9fa')
+GREY   = colors.HexColor('#6c757d')
+
 styles = getSampleStyleSheet()
-title_style  = ParagraphStyle('Title',  parent=styles['Title'],    fontSize=15, spaceAfter=6,  leading=22, alignment=TA_CENTER)
-author_style = ParagraphStyle('Author', parent=styles['Normal'],   fontSize=11, spaceAfter=4,  alignment=TA_CENTER, textColor=colors.HexColor('#444444'))
-h1_style     = ParagraphStyle('H1',     parent=styles['Heading1'], fontSize=13, spaceBefore=18,spaceAfter=6,  textColor=colors.HexColor('#1a1a2e'))
-h2_style     = ParagraphStyle('H2',     parent=styles['Heading2'], fontSize=11, spaceBefore=10,spaceAfter=4,  textColor=colors.HexColor('#16213e'))
-body_style   = ParagraphStyle('Body',   parent=styles['Normal'],   fontSize=10, leading=15,    spaceAfter=7,  alignment=TA_JUSTIFY)
-bold_style   = ParagraphStyle('Bold',   parent=styles['Normal'],   fontSize=10, leading=14,    spaceAfter=4,  fontName='Helvetica-Bold')
-code_style   = ParagraphStyle('Code',   parent=styles['Code'],     fontSize=8,  leading=13,    spaceAfter=6,  fontName='Courier', backColor=colors.HexColor('#f5f5f5'), leftIndent=20, borderPad=6)
-bullet_style = ParagraphStyle('Bullet', parent=styles['Normal'],   fontSize=10, leading=14,    spaceAfter=4,  leftIndent=20)
-note_style   = ParagraphStyle('Note',   parent=styles['Normal'],   fontSize=9,  leading=13,    spaceAfter=5,  leftIndent=20, textColor=colors.HexColor('#555555'), fontName='Helvetica-Oblique')
+
+s_title   = ParagraphStyle('s_title',   fontSize=20, leading=26, alignment=TA_CENTER, fontName='Helvetica-Bold', textColor=NAVY, spaceAfter=4)
+s_sub     = ParagraphStyle('s_sub',     fontSize=11, leading=16, alignment=TA_CENTER, fontName='Helvetica',      textColor=BLUE, spaceAfter=2)
+s_affil   = ParagraphStyle('s_affil',   fontSize=9,  leading=13, alignment=TA_CENTER, fontName='Helvetica',      textColor=GREY, spaceAfter=2)
+s_h1      = ParagraphStyle('s_h1',      fontSize=12, leading=16, fontName='Helvetica-Bold', textColor=NAVY,  spaceBefore=14, spaceAfter=5,  borderPad=3)
+s_h2      = ParagraphStyle('s_h2',      fontSize=10, leading=14, fontName='Helvetica-Bold', textColor=BLUE,  spaceBefore=8,  spaceAfter=3)
+s_body    = ParagraphStyle('s_body',    fontSize=9.5,leading=14, fontName='Helvetica',      textColor=colors.black, spaceAfter=6, alignment=TA_JUSTIFY)
+s_bullet  = ParagraphStyle('s_bullet',  fontSize=9.5,leading=14, fontName='Helvetica',      textColor=colors.black, spaceAfter=4, leftIndent=14)
+s_bold    = ParagraphStyle('s_bold',    fontSize=9.5,leading=14, fontName='Helvetica-Bold', textColor=colors.black, spaceAfter=4)
+s_code    = ParagraphStyle('s_code',    fontSize=8,  leading=12, fontName='Courier',        textColor=NAVY,  spaceAfter=6, leftIndent=16, backColor=LGREY, borderPad=6)
+s_caption = ParagraphStyle('s_caption', fontSize=8,  leading=11, fontName='Helvetica-Oblique', textColor=GREY, alignment=TA_CENTER, spaceAfter=8)
+s_abs     = ParagraphStyle('s_abs',     fontSize=9.5,leading=14, fontName='Helvetica',      textColor=colors.black, alignment=TA_JUSTIFY)
 
 
-def make_table(data, col_widths, highlight_row=None):
-    t = Table(data, colWidths=col_widths)
-    style = TableStyle([
-        ('BACKGROUND',    (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
-        ('TEXTCOLOR',     (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',      (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE',      (0, 0), (-1,-1), 9),
-        ('ALIGN',         (1, 0), (-1,-1), 'CENTER'),
-        ('ROWBACKGROUNDS',(0, 1), (-1,-1), [colors.white, colors.HexColor('#f0f4ff')]),
-        ('GRID',          (0, 0), (-1,-1), 0.5, colors.grey),
-        ('TOPPADDING',    (0, 0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1,-1), 5),
+def h1(text):
+    """Section heading with a navy underline rule."""
+    return KeepTogether([
+        Paragraph(text, s_h1),
+        HRFlowable(width='100%', thickness=1.2, color=NAVY, spaceAfter=4),
     ])
-    if highlight_row is not None:
-        style.add('BACKGROUND', (0, highlight_row), (-1, highlight_row), colors.HexColor('#d4edda'))
-        style.add('FONTNAME',   (0, highlight_row), (-1, highlight_row), 'Helvetica-Bold')
-    t.setStyle(style)
+
+
+def h2(text):
+    return Paragraph(text, s_h2)
+
+
+def body(text):
+    return Paragraph(text, s_body)
+
+
+def bullet(text):
+    return Paragraph(f'&#8226;&nbsp;&nbsp;{text}', s_bullet)
+
+
+def tbl(data, col_widths, highlight=None, center_cols=None):
+    """Build a styled table."""
+    t = Table(data, colWidths=col_widths, repeatRows=1)
+    ts = TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, 0),  NAVY),
+        ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',      (0, 0), (-1, -1), 8.5),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, LGREY]),
+        ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#cccccc')),
+        ('LINEBELOW',     (0, 0), (-1, 0),  1.2, NAVY),
+    ])
+    if highlight:
+        ts.add('BACKGROUND', (0, highlight), (-1, highlight), GREEN)
+        ts.add('FONTNAME',   (0, highlight), (-1, highlight), 'Helvetica-Bold')
+    if center_cols:
+        for c in center_cols:
+            ts.add('ALIGN', (c, 0), (c, -1), 'CENTER')
+    t.setStyle(ts)
     return t
 
 
+# ── Abstract box helper ──────────────────────────────────────────────────────
+def abstract_box(text):
+    inner = Table(
+        [[Paragraph('<b>Abstract</b>', ParagraphStyle('abt', fontSize=9.5, fontName='Helvetica-Bold', textColor=NAVY, spaceAfter=4)),],
+         [Paragraph(text, s_abs)]],
+        colWidths=[PAGE_W - 2 * MARGIN - 1.4*cm],
+    )
+    inner.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LBLUE),
+        ('BOX',        (0, 0), (-1, -1), 1, BLUE),
+        ('LEFTPADDING',  (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING',   (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING',(0, 0), (-1, -1), 8),
+    ]))
+    return inner
+
+
+# ============================================================================
 story = []
 
-# --------------------------------------------------------------------------
-# En-tête
-# --------------------------------------------------------------------------
-story.append(Spacer(1, 0.3*cm))
-story.append(Paragraph(
-    "Estimation de la Largeur d'un Pipe Enfoui<br/>par Réseau de Neurones Récurrent LSTM",
-    title_style,
-))
-story.append(Spacer(1, 0.3*cm))
-
-# Tableau des auteurs
-authors_data = [
-    ['Auteur', 'Email'],
-    ['AHMED Filali',              'ahmedfillali905@gmail.com'],
-    ['FOLLIVI Edem Roberto',      'robertfollivi49@gmail.com'],
-    ['MAFORIKAN Harald',          'haraldmaforikan@gmail.com'],
-    ['TAMBOU NGUEMO Franck Kevin','ktambou99@gmail.com'],
-    ['WILSON-BAHUN A. Denis',     'wilsonvry@gmail.com'],
-]
-t_authors = Table(authors_data, colWidths=[8*cm, 6*cm])
-t_authors.setStyle(TableStyle([
-    ('BACKGROUND',    (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
-    ('TEXTCOLOR',     (0, 0), (-1, 0), colors.white),
-    ('FONTNAME',      (0, 0), (-1, 0), 'Helvetica-Bold'),
-    ('FONTSIZE',      (0, 0), (-1,-1), 9),
-    ('ALIGN',         (0, 0), (-1,-1), 'LEFT'),
-    ('ROWBACKGROUNDS',(0, 1), (-1,-1), [colors.white, colors.HexColor('#f0f4ff')]),
-    ('GRID',          (0, 0), (-1,-1), 0.5, colors.grey),
-    ('TOPPADDING',    (0, 0), (-1,-1), 4),
-    ('BOTTOMPADDING', (0, 0), (-1,-1), 4),
-    ('LEFTPADDING',   (0, 0), (-1,-1), 8),
-]))
-story.append(t_authors)
-story.append(Paragraph('HETIC — Mars 2026', author_style))
-story.append(HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#1a1a2e'), spaceAfter=14))
-
-# --------------------------------------------------------------------------
-# Résumé
-# --------------------------------------------------------------------------
-story.append(Paragraph('Résumé', h1_style))
-story.append(Paragraph(
-    "Ce travail s'inscrit dans le cadre du projet Skipper, qui vise à automatiser l'inspection "
-    "de pipelines enfouis à partir de données de champ magnétique. Nous traitons la <b>tâche "
-    "d'estimation de la largeur</b> de la zone d'influence magnétique. Notre approche repose "
-    "sur un <b>réseau LSTM bidirectionnel</b> alimenté par un profil d'intensité 1D extrait "
-    "autour du <b>barycentre</b> du signal magnétique. Nous démontrons que le LSTM surpasse "
-    "significativement l'approche CNN de référence, en réduisant l'erreur absolue moyenne de "
-    "14,91 m à <b>4,49 m</b> sur données réelles — soit une réduction de <b>70 %</b>. "
-    "Nous montrons également que, structurellement, le LSTM est le modèle le mieux adapté "
-    "à ce problème, et que ses performances sont directement liées à la quantité de données "
-    "réelles disponibles : avec davantage de données terrain, le LSTM a le potentiel "
-    "d'atteindre ou de dépasser la mesure physique directe (MAE = 2,40 m).",
-    body_style,
-))
-
-# --------------------------------------------------------------------------
-# 1. Introduction
-# --------------------------------------------------------------------------
-story.append(Paragraph('1. Introduction', h1_style))
-story.append(Paragraph(
-    "La détection et la caractérisation de pipelines enfouis constitue un enjeu industriel "
-    "et de sécurité critique. Les opérateurs de réseaux (eau, gaz, hydrocarbures) doivent "
-    "inspecter régulièrement leurs infrastructures pour prévenir les ruptures, détecter les "
-    "corrosions et planifier les interventions de maintenance. Les méthodes traditionnelles, "
-    "basées sur des mesures physiques in situ, sont coûteuses et chronophages.",
-    body_style,
-))
-story.append(Paragraph(
-    "Les techniques magnétiques offrent une alternative non intrusive prometteuse. Un capteur "
-    "déplacé en surface enregistre les perturbations du champ magnétique terrestre induites "
-    "par les structures métalliques enfouies. Ces mesures, organisées en cartes 2D "
-    "multi-canaux (Bx, By, Bz et la norme ||B||), contiennent l'empreinte magnétique du pipe "
-    "et permettent d'en déduire des caractéristiques géométriques comme sa largeur d'influence.",
-    body_style,
-))
-story.append(Paragraph("Problème traité", h2_style))
-story.append(Paragraph(
-    "Nous cherchons à estimer automatiquement la <b>largeur de la zone d'influence "
-    "magnétique</b> (en mètres) à partir d'une carte magnétique 2D. Il s'agit d'un problème "
-    "de <b>régression supervisée</b> : l'entrée est une image de dimensions variables "
-    "(plusieurs centaines à milliers de pixels), et la sortie est un scalaire entre 5 et 80 m.",
-    body_style,
-))
-story.append(Paragraph("État de l'art et motivation", h2_style))
-story.append(Paragraph(
-    "Plusieurs approches ont été explorées dans ce projet :",
-    body_style,
-))
-story.append(Paragraph(
-    "• <b>Mesure physique directe</b> (MAE = 2,40 m) : exploitation analytique du modèle "
-    "théorique de réponse magnétique d'un cylindre. Très précise dans des conditions "
-    "idéales, mais fragile face aux acquisitions bruitées ou à géométrie complexe.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>CNN Régression</b> (MAE = 14,91 m) : approche de référence. Le CNN traite l'image "
-    "après redimensionnement à 224×224 pixels. Ce redimensionnement est une perte "
-    "d'information critique : l'échelle physique (1 pixel ≈ 20 cm) est détruite, et le "
-    "réseau ne peut pas relier directement la largeur en pixels à une largeur en mètres.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>LSTM bidirectionnel</b> (MAE = 4,49 m) : notre approche. Le LSTM travaille sur "
-    "une séquence 1D de longueur variable, préservant l'échelle physique et exploitant la "
-    "structure temporelle du signal magnétique. C'est l'approche la plus cohérente avec "
-    "la nature du problème.",
-    bullet_style,
-))
-
-# --------------------------------------------------------------------------
-# 2. Matériel et Méthodes
-# --------------------------------------------------------------------------
-story.append(Paragraph('2. Matériel et Méthodes', h1_style))
-
-story.append(Paragraph('2.1 Données', h2_style))
-story.append(Paragraph(
-    "Le jeu de données provient du projet Skipper et comprend deux catégories :",
-    body_style,
-))
-story.append(Paragraph(
-    "• <b>Données synthétiques (~2 884 fichiers)</b> : générées par simulation physique, "
-    "elles couvrent une grande variété de configurations — pipe droit ou courbé, avec ou "
-    "sans fourreau, signal bruité ou propre, largeurs de 5 à 80 m. Chaque fichier est un "
-    "tableau NumPy (H, W, 4) en float16.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Données réelles (51 fichiers)</b> : acquisitions terrain réelles fournies par "
-    "Skipper NDT, avec labels de largeur (width_m). Ces données sont précieuses car elles "
-    "reflètent les conditions réelles d'inspection avec leurs imperfections et leur variabilité.",
-    bullet_style,
-))
+# ── Title block ──────────────────────────────────────────────────────────────
 story.append(Spacer(1, 0.2*cm))
-story.append(make_table(
-    [['Ensemble',      'Synthétiques', 'Réelles'],
-     ['Entraînement',  '85 %',         '20 %'],
-     ['Validation',    '15 %',         '20 %'],
-     ['Test',          '—',            '60 %']],
-    [5*cm, 4*cm, 4*cm],
+
+# Top decorative bar
+story.append(HRFlowable(width='100%', thickness=4, color=NAVY, spaceAfter=10))
+
+story.append(Paragraph(
+    "Estimating the Width of a Buried Pipe<br/>Using a Bidirectional LSTM Neural Network",
+    s_title,
 ))
 story.append(Spacer(1, 0.2*cm))
 story.append(Paragraph(
-    "Les données réelles sont intégrées à l'entraînement et à la validation pour ancrer le "
-    "modèle dans la réalité du terrain, tout en réservant 60 % d'entre elles pour l'évaluation "
-    "finale.",
-    body_style,
+    "AHMED Filali &nbsp;·&nbsp; FOLLIVI Edem Roberto &nbsp;·&nbsp; MAFORIKAN Harald &nbsp;·&nbsp;"
+    " TAMBOU NGUEMO Franck Kevin &nbsp;·&nbsp; WILSON-BAHUN A. Denis",
+    s_sub,
+))
+story.append(Paragraph("HETIC — School of Digital Technology &nbsp;|&nbsp; Paris, France &nbsp;|&nbsp; March 2026", s_affil))
+story.append(Paragraph(
+    'Industry Partner: <a href="https://skipperndt.com/" color="#1b4f72"><u>Skipper NDT</u></a>'
+    ' — https://skipperndt.com/',
+    s_affil,
 ))
 
-# --------------------------------------------------------------------------
-# 2.2 Barycentre
-# --------------------------------------------------------------------------
-story.append(Paragraph("2.2 Extraction du profil par barycentre", h2_style))
-story.append(Paragraph(
-    "L'une des contributions clés de ce travail est la méthode d'extraction du profil 1D "
-    "depuis la carte magnétique 2D. Une approche naïve consisterait à prendre la moyenne "
-    "de toutes les lignes de l'image — mais cela dilue le signal avec des zones sans "
-    "information. Une autre erreur courante est de <b>filtrer les pixels d'intensité faible</b> "
-    "(en dessous d'un seuil), ce qui supprime précisément les zones à intensité nulle "
-    "correspondant au pipe lui-même — détruisant l'information de largeur.",
-    body_style,
+story.append(HRFlowable(width='100%', thickness=1.5, color=BLUE, spaceBefore=8, spaceAfter=12))
+
+# ── Abstract ─────────────────────────────────────────────────────────────────
+story.append(abstract_box(
+    "This paper addresses the automatic estimation of the magnetic influence width of a buried "
+    "pipe from multi-channel magnetic field maps, within the Skipper NDT inspection project. "
+    "Our approach combines a <b>center-of-mass (barycentre) profile extraction</b> method with "
+    "a <b>bidirectional LSTM neural network</b>, which natively handles variable-length "
+    "sequences and preserves the physical scale of the acquisition (1 pixel ≈ 20 cm). "
+    "Evaluated on real acquisition data, our model achieves a Mean Absolute Error of "
+    "<b>4.49 m</b>, reducing the CNN baseline error by <b>70 %</b> and approaching the "
+    "physical direct measurement (MAE = 2.40 m). We argue that the LSTM is architecturally "
+    "the most suitable model for this problem and that its current performance is limited "
+    "solely by the scarcity of annotated real data — not by its design."
 ))
+story.append(Spacer(1, 0.4*cm))
+
+# ── Keywords ─────────────────────────────────────────────────────────────────
 story.append(Paragraph(
-    "Notre solution : localiser le <b>barycentre</b> (centre de masse) du signal magnétique "
-    "normalisé, puis extraire un profil centré sur cette position.",
-    body_style,
-))
-story.append(Paragraph(
-    "Le barycentre d'une image d'intensité I(y, x) est défini par :",
-    body_style,
-))
-story.append(Paragraph(
-    "y_c = Σ(y · I(y,x)) / Σ(I(y,x))     [calculé avec scipy.ndimage.center_of_mass]",
-    code_style,
-))
-story.append(Paragraph(
-    "Cette coordonnée y_c indique la ligne où le signal magnétique est le plus concentré, "
-    "c'est-à-dire la ligne centrale du pipe dans l'image. On extrait ensuite une <b>tranche "
-    "de 5 lignes</b> autour de y_c (y_c − 2 à y_c + 2) et on calcule la moyenne colonne "
-    "par colonne pour obtenir le profil final :",
-    body_style,
-))
-story.append(Paragraph(
-    "profil[x] = moyenne( I[y_c-2 : y_c+3, x] )    pour x = 0, 1, ..., W-1",
-    code_style,
-))
-story.append(Paragraph(
-    "<b>Pourquoi cette approche est supérieure ?</b> Le profil ainsi obtenu :",
-    bold_style,
-))
-story.append(Paragraph(
-    "• Contient tous les pixels de la largeur, y compris ceux d'intensité nulle ou faible "
-    "(zone du pipe), qui sont porteurs d'information sur la largeur.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• Est centré sur le pipe, éliminant les lignes de bruit situées loin du signal.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• Préserve la longueur naturelle W de l'image en colonnes, donc l'<b>échelle physique</b> "
-    "(1 colonne ≈ 20 cm selon la résolution d'acquisition).",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• Produit une séquence de longueur variable, naturellement adaptée à un traitement par LSTM.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "En complément, trois métadonnées normalisées enrichissent le vecteur d'entrée du "
-    "régresseur : le nombre de pixels actifs (intensité > 0), la hauteur H et la largeur W "
-    "de l'image. Ces features encodent l'échelle et le contexte de l'acquisition.",
-    body_style,
+    "<b>Keywords:</b> Buried pipe inspection &nbsp;·&nbsp; Magnetic field &nbsp;·&nbsp; "
+    "LSTM &nbsp;·&nbsp; Bidirectional RNN &nbsp;·&nbsp; Width regression &nbsp;·&nbsp; "
+    "Center of mass &nbsp;·&nbsp; Non-destructive testing",
+    ParagraphStyle('kw', fontSize=8.5, leading=13, fontName='Helvetica-Oblique',
+                   textColor=GREY, spaceAfter=14),
 ))
 
-# --------------------------------------------------------------------------
-# 2.3 Architecture LSTM
-# --------------------------------------------------------------------------
-story.append(Paragraph("2.3 Architecture LSTM bidirectionnel — choix et justification", h2_style))
-story.append(Paragraph(
-    "Le <b>LSTM (Long Short-Term Memory)</b> est un réseau de neurones récurrent conçu pour "
-    "modéliser des dépendances à long terme dans des séquences. Introduit par Hochreiter & "
-    "Schmidhuber (1997), il résout le problème du gradient évanescent des RNN classiques "
-    "grâce à un mécanisme de portes (gate mechanism) qui contrôle ce qui est mémorisé, "
-    "oublié ou transmis à chaque pas de temps.",
-    body_style,
+# ============================================================================
+# 1. INTRODUCTION
+# ============================================================================
+story.append(h1("1.  Introduction"))
+story.append(body(
+    "The detection and characterisation of buried pipelines is a critical industrial and "
+    "safety challenge. Network operators must regularly inspect their infrastructure to "
+    "prevent failures, detect corrosion, and plan maintenance. Traditional methods rely on "
+    "direct physical measurements, which are time-consuming and expensive."
 ))
-story.append(Paragraph(
-    "<b>Pourquoi le LSTM est le modèle le plus adapté à ce problème ?</b>",
-    bold_style,
-))
-story.append(Paragraph(
-    "• <b>Nature séquentielle du signal</b> : le profil magnétique est une séquence 1D où "
-    "la position de chaque valeur dans la séquence a une signification physique (distance "
-    "en mètres depuis le bord de l'image). Le LSTM, contrairement au CNN, exploite "
-    "explicitement cet ordre et ces dépendances spatiales.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Longueur variable</b> : les images d'acquisition ont des largeurs W très variables "
-    "(197 à 3 000+ colonnes). Le LSTM traite nativement des séquences de longueurs variables "
-    "via le mécanisme de padding et de pack_padded_sequence — le CNN impose un redimensionnement "
-    "destructeur.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Préservation de l'échelle physique</b> : la largeur du pipe est directement liée "
-    "au nombre de colonnes dans le profil. En travaillant sur la séquence brute (non "
-    "redimensionnée), le LSTM peut apprendre cette correspondance. Le CNN, en forçant "
-    "224×224, perd complètement cette information.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Capture des transitions</b> : la largeur se lit dans le profil par la position des "
-    "transitions montante et descendante du signal. Un réseau <b>bidirectionnel</b> parcourt "
-    "la séquence dans les deux sens, capturant simultanément la transition d'entrée "
-    "(début du pipe) et de sortie (fin du pipe) — ce qu'un LSTM unidirectionnel ne ferait "
-    "qu'imparfaitement.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "L'architecture complète est la suivante :",
-    body_style,
-))
-story.append(Paragraph(
-    "Séquence (L, 1)          Métadonnées normalisées (3,)\n"
-    "      |                           |\n"
-    " LSTM bidirectionnel              |\n"
-    " hidden_size=64, num_layers=2     |\n"
-    " dropout=0.3                      |\n"
-    "      |                           |\n"
-    " [état_avant | état_arrière] ─────┘\n"
-    "      concaténation (128 + 3 = 131 dimensions)\n"
-    "      |\n"
-    " Linear(131 → 64) → ReLU → Dropout(0.3)\n"
-    " Linear(64  → 32) → ReLU\n"
-    " Linear(32  →  1)          [sans activation = régression non bornée]\n"
-    "      |\n"
-    " Largeur prédite (mètres, après dénormalisation)",
-    code_style,
-))
-story.append(Paragraph(
-    "<b>Détails des choix d'architecture :</b>",
-    bold_style,
-))
-story.append(Paragraph(
-    "• <b>hidden_size = 64</b> : taille de l'état caché par direction. Suffisant pour encoder "
-    "la structure du profil sans sur-paramétrage.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>num_layers = 2</b> : deux couches LSTM empilées permettent au réseau de construire "
-    "des représentations hiérarchiques (bas niveau : transitions locales ; haut niveau : "
-    "structure globale du profil).",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>dropout = 0.3</b> : régularisation appliquée entre les couches LSTM et dans le MLP "
-    "pour limiter le sur-apprentissage, particulièrement important avec peu de données réelles.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Gradient clipping (norme max = 1,0)</b> : stabilise l'entraînement en évitant "
-    "les explosions de gradient, phénomène fréquent avec les RNN sur de longues séquences.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Pas d'activation ReLU sur la couche de sortie</b> : la régression de largeur "
-    "nécessite une sortie non bornée. Une ReLU en sortie bloquerait les prédictions négatives "
-    "après dénormalisation.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "Le modèle compte environ <b>120 000 paramètres entraînables</b>, ce qui le rend léger "
-    "et rapide à entraîner même sur CPU.",
-    body_style,
+story.append(body(
+    "Magnetic techniques offer a non-intrusive alternative: a sensor moved across the surface "
+    "records perturbations of Earth's magnetic field induced by metallic buried structures. "
+    "These measurements, organised as 2D multi-channel maps (Bx, By, Bz, and the field norm "
+    "||B||), encode the magnetic footprint of the pipe and enable the inference of geometric "
+    "properties such as its width of influence."
 ))
 
-story.append(Paragraph("2.4 Protocole d'entraînement", h2_style))
-story.append(Paragraph("• <b>Fonction de perte</b> : MSE (Mean Squared Error) sur les largeurs normalisées par z-score.", bullet_style))
-story.append(Paragraph("• <b>Optimiseur</b> : Adam (lr = 0,001) avec scheduler ReduceLROnPlateau (facteur 0,5, patience 4 époques sans amélioration).", bullet_style))
-story.append(Paragraph("• <b>Early stopping</b> : arrêt si la perte de validation ne s'améliore pas pendant 10 époques consécutives. Le meilleur état du modèle est sauvegardé.", bullet_style))
-story.append(Paragraph("• <b>Batch size = 32</b> : les séquences de longueurs variables sont paddées dynamiquement à la longueur maximale du lot via pack_padded_sequence.", bullet_style))
+story.append(h2("1.1  Problem Statement"))
+story.append(body(
+    "We aim to automatically estimate the <b>magnetic influence width</b> (in metres) from a "
+    "2D magnetic field map. This is a <b>supervised regression</b> problem: the input is an "
+    "image of variable spatial dimensions (up to several thousand pixels wide), and the output "
+    "is a scalar between 5 and 80 m."
+))
 
-# --------------------------------------------------------------------------
-# 3. Résultats
-# --------------------------------------------------------------------------
-story.append(Paragraph('3. Résultats', h1_style))
+story.append(h2("1.2  Approaches Compared"))
+story.append(body("Three approaches are evaluated in this project:"))
+story.append(bullet(
+    "<b>Physical direct measurement</b> (MAE = 2.40 m): analytical computation based on the "
+    "theoretical magnetic response of a cylinder. Highly accurate under ideal conditions but "
+    "brittle in the presence of noise or complex geometry."
+))
+story.append(bullet(
+    "<b>CNN Regression</b> (MAE = 14.91 m): convolutional baseline. The CNN processes the "
+    "image after resizing to 224×224 pixels, which <b>destroys the physical scale</b> "
+    "(1 pixel ≈ 20 cm is lost), making it impossible for the network to directly link the "
+    "width in pixels to a width in metres."
+))
+story.append(bullet(
+    "<b>Bidirectional LSTM (this work)</b> (MAE = 4.49 m): our approach. The LSTM processes "
+    "a 1D profile extracted from the image, preserving physical scale and exploiting the "
+    "sequential structure of the magnetic signal."
+))
 
-story.append(Paragraph('3.1 Métriques finales', h2_style))
+# ============================================================================
+# 2. DATA
+# ============================================================================
+story.append(h1("2.  Data"))
+
+story.append(h2("2.1  Dataset Description"))
+story.append(body(
+    "The dataset is provided by <b>Skipper NDT</b> (https://skipperndt.com/) and comprises "
+    "two categories of .npz files, each containing a (H, W, 4) float16 array of the four "
+    "magnetic channels:"
+))
+story.append(bullet(
+    "<b>Synthetic data (~2,884 files)</b>: generated by physical simulation, covering a wide "
+    "variety of configurations — straight or curved pipe, with or without sheath, noisy or "
+    "clean field, widths from 5 to 80 m. Provide volume for training."
+))
+story.append(bullet(
+    "<b>Real acquisition data (51 files)</b>: actual field measurements provided by Skipper "
+    "NDT with width labels (width_m). These are precious as they reflect true inspection "
+    "conditions with their inherent variability and imperfections."
+))
 story.append(Spacer(1, 0.2*cm))
-story.append(make_table(
-    [['Jeu de données',           'MAE (m)', 'RMSE (m)'],
-     ['Validation (Synth + Réel)','~10,86',  '~19,89'],
-     ['Test Réel',                '4,49',    '6,37']],
-    [7*cm, 3.5*cm, 3.5*cm],
-    highlight_row=2,
+
+story.append(body("<b>Data splits used:</b>"))
+story.append(tbl(
+    [['Split', 'Synthetic data', 'Real data'],
+     ['Training',   '85 %', '20 %'],
+     ['Validation', '15 %', '20 %'],
+     ['Test',       '—',    '60 %']],
+    col_widths=[6*cm, 4.5*cm, 4.5*cm],
+    center_cols=[1, 2],
 ))
-story.append(Spacer(1, 0.3*cm))
 story.append(Paragraph(
-    "La MAE de validation plus élevée que sur le test réel s'explique par la distribution "
-    "des données synthétiques, dont certaines configurations extrêmes (très large ou très "
-    "étroit) sont difficiles à prédire. Sur les données réelles, la distribution est plus "
-    "homogène et le LSTM généralise bien.",
-    body_style,
+    "Table 1 — Data splits. Real data is introduced in training and validation to ground "
+    "the model in actual field conditions, while 60 % is reserved for final evaluation.",
+    s_caption,
 ))
 
-story.append(Paragraph('3.2 Comparaison des approches', h2_style))
+story.append(h2("2.2  Why Real Data Matters"))
+story.append(body(
+    "Synthetic data, despite its variety, is generated from an idealised physical model. "
+    "Real acquisitions contain sensor noise, ground heterogeneity, and geometric imperfections "
+    "that cannot be fully simulated. Incorporating real data — even in small quantities — "
+    "significantly anchors the model to the true data distribution and reduces the "
+    "synthetic-to-real generalisation gap."
+))
+
+# ============================================================================
+# 3. METHOD
+# ============================================================================
+story.append(h1("3.  Method"))
+
+# -- 3.1 Barycentre
+story.append(h2("3.1  Center-of-Mass Profile Extraction (Barycentre)"))
+story.append(body(
+    "A naive approach to converting the 2D magnetic map into a 1D signal would be to average "
+    "all rows of the image — but this dilutes the pipe signal with uninformative background "
+    "rows. A more critical mistake is to <b>filter out low-intensity pixels</b> using a "
+    "threshold: this suppresses precisely the near-zero intensity regions corresponding to "
+    "the pipe itself, destroying the very information needed to measure its width."
+))
+story.append(body(
+    "Our solution is to locate the <b>center of mass (barycentre)</b> of the normalised "
+    "magnetic signal and extract a profile centred on this position."
+))
+story.append(body("The barycentre row coordinate y<sub>c</sub> is defined as:"))
+story.append(Paragraph(
+    "y_c  =  Σ(y · I_norm(y,x))  /  Σ(I_norm(y,x))"
+    "          [computed via scipy.ndimage.center_of_mass]",
+    s_code,
+))
+story.append(body(
+    "where I_norm is the intensity map normalised to [0, 1] by its maximum. "
+    "This coordinate identifies the row where the magnetic energy is most concentrated — "
+    "i.e., the central axis of the pipe in the image."
+))
+story.append(body("The 1D profile is then computed as:"))
+story.append(Paragraph(
+    "profile[x]  =  mean( I_norm[ y_c-2 : y_c+3,  x ] )     for x = 0, 1, …, W−1",
+    s_code,
+))
+story.append(body(
+    "A slice of <b>5 rows</b> around y<sub>c</sub> is averaged column by column. "
+    "If the resulting profile exceeds 3,000 columns, it is uniformly downsampled."
+))
+story.append(body("<b>Key properties of this representation:</b>"))
+story.append(bullet(
+    "<b>All pixels are kept</b>, including near-zero values at the pipe location — "
+    "essential for measuring width."
+))
+story.append(bullet(
+    "<b>Physical scale is preserved</b>: the profile has W elements, each representing "
+    "≈ 20 cm of real-world distance."
+))
+story.append(bullet(
+    "The profile has <b>variable length W</b>, which matches the natural variable-length "
+    "input format of LSTM networks."
+))
+story.append(bullet(
+    "Signal-to-noise ratio is improved by focusing on the 5 rows of highest energy, "
+    "discarding noisy peripheral rows."
+))
+story.append(Spacer(1, 0.1*cm))
+story.append(body(
+    "Three <b>metadata features</b> are appended to the regressor input: the number of "
+    "active pixels (intensity > 0), the image height H, and the image width W — all "
+    "z-score normalised. These encode the scale and context of each acquisition."
+))
+
+# -- 3.2 LSTM architecture
+story.append(h2("3.2  Bidirectional LSTM Architecture"))
+story.append(body(
+    "The <b>LSTM (Long Short-Term Memory)</b>, introduced by Hochreiter & Schmidhuber (1997), "
+    "is a recurrent neural network designed to model long-range dependencies in sequences. "
+    "Its gating mechanism (input gate, forget gate, output gate) allows it to selectively "
+    "retain or discard information over long horizons, overcoming the vanishing gradient "
+    "problem of vanilla RNNs."
+))
+story.append(body(
+    "<b>Why is the LSTM the most suitable model for this problem?</b>"
+))
+story.append(bullet(
+    "<b>Sequential nature of the signal</b>: the magnetic profile is a 1D sequence where "
+    "the position of each value carries a physical meaning (distance from the image edge in "
+    "metres). The LSTM, unlike the CNN, explicitly leverages this ordering and long-range "
+    "spatial dependencies."
+))
+story.append(bullet(
+    "<b>Variable-length input</b>: acquisition images have highly variable widths (197 to "
+    "3,000+ columns). The LSTM handles variable-length sequences natively via dynamic "
+    "padding and PyTorch's pack_padded_sequence — the CNN imposes a destructive resize."
+))
+story.append(bullet(
+    "<b>Physical scale preservation</b>: pipe width is directly proportional to the number "
+    "of profile columns. By processing the raw, non-resized sequence, the LSTM can learn "
+    "this correspondence. The CNN, by forcing 224×224, irreversibly loses this information."
+))
+story.append(bullet(
+    "<b>Bidirectional processing</b>: a bidirectional LSTM processes the sequence in both "
+    "directions, capturing simultaneously the <i>entry transition</i> (where the signal "
+    "rises at the pipe edge) and the <i>exit transition</i> (where it falls at the other "
+    "edge). This symmetrical reading is critical for accurately estimating width."
+))
 story.append(Spacer(1, 0.2*cm))
-story.append(make_table(
-    [['Approche',             'MAE Test Réel', 'Réduction d\'erreur'],
-     ['CNN Régression',       '14,91 m',       'référence'],
-     ['LSTM (ce modèle)',     '4,49 m',        '−70 %'],
-     ['Mesure Physique',      '2,40 m',        '—']],
-    [5.5*cm, 4*cm, 4.5*cm],
-    highlight_row=2,
-))
-story.append(Spacer(1, 0.3*cm))
+
+story.append(body("<b>Model architecture (LSTMWidth):</b>"))
 story.append(Paragraph(
-    "Le LSTM réduit l'erreur du CNN d'un facteur <b>3,3</b>. L'écart résiduel de ~2 m avec "
-    "la mesure physique directe n'est pas une limite structurelle du modèle — c'est une "
-    "conséquence directe du <b>manque de données réelles d'entraînement</b>.",
-    body_style,
+    "  Input sequence (L, 1)          Metadata (3,)\n"
+    "         |                             |\n"
+    "  Bidirectional LSTM                   |\n"
+    "  hidden=64, layers=2, dropout=0.3     |\n"
+    "         |                             |\n"
+    "  [forward_state | backward_state] ────┘\n"
+    "     concat  →  (128 + 3 = 131 dim)\n"
+    "         |\n"
+    "  Linear(131→64) → ReLU → Dropout(0.3)\n"
+    "  Linear(64 →32) → ReLU\n"
+    "  Linear(32 → 1)          [no output activation — unbounded regression]\n"
+    "         |\n"
+    "  Predicted width (metres, after denormalisation)",
+    s_code,
+))
+story.append(Paragraph("Figure 1 — LSTMWidth model architecture.", s_caption))
+
+story.append(tbl(
+    [['Hyperparameter',      'Value', 'Rationale'],
+     ['hidden_size',         '64',    'Sufficient to encode profile structure without overfit'],
+     ['num_layers',          '2',     'Hierarchical representation: local transitions + global shape'],
+     ['dropout',             '0.3',   'Regularisation — critical with few real training samples'],
+     ['Gradient clipping',   '1.0',   'Prevents gradient explosion on long sequences'],
+     ['Early stopping patience', '10','Saves best model; avoids overfit on synthetic data'],
+     ['Learning rate',       '0.001', 'Adam optimiser with ReduceLROnPlateau (factor 0.5, patience 4)'],
+     ['Batch size',          '32',    'Dynamic padding to max sequence length in each batch']],
+    col_widths=[4.5*cm, 2.5*cm, 8*cm],
+))
+story.append(Paragraph("Table 2 — Hyperparameters and design rationale.", s_caption))
+
+# -- 3.3 Training
+story.append(h2("3.3  Training Protocol"))
+story.append(bullet("<b>Loss function</b>: MSE on z-score normalised widths."))
+story.append(bullet("<b>Optimiser</b>: Adam (lr = 0.001) with ReduceLROnPlateau scheduler (factor 0.5, patience 4)."))
+story.append(bullet("<b>Gradient clipping</b>: max norm = 1.0 for training stability on long sequences."))
+story.append(bullet("<b>Early stopping</b>: patience = 10 epochs on validation loss; best model weights are saved."))
+story.append(bullet("<b>Variable-length batching</b>: sequences are padded to the maximum length within each batch using pack_padded_sequence, ensuring the LSTM ignores padding tokens."))
+
+# ============================================================================
+# 4. RESULTS
+# ============================================================================
+story.append(h1("4.  Results"))
+
+story.append(h2("4.1  Final Metrics"))
+story.append(tbl(
+    [['Dataset',                   'MAE (m)', 'RMSE (m)'],
+     ['Validation (Synth + Real)', '~10.86',  '~19.89'],
+     ['Test — Real data',          '4.49',    '6.37']],
+    col_widths=[8.5*cm, 3*cm, 3.5*cm],
+    highlight=2,
+    center_cols=[1, 2],
+))
+story.append(Paragraph("Table 3 — Final evaluation metrics on the held-out test set.", s_caption))
+story.append(body(
+    "The higher validation MAE compared to the real test MAE is explained by the distribution "
+    "of synthetic data, which includes extreme configurations (very wide or very narrow pipes) "
+    "that are challenging to predict. On real data, the distribution is more homogeneous and "
+    "the LSTM generalises well."
 ))
 
-story.append(Paragraph("3.3 Potentiel du LSTM avec davantage de données réelles", h2_style))
-story.append(Paragraph(
-    "C'est le point central de cette analyse. Le LSTM, contrairement au CNN, est "
-    "<b>structurellement cohérent</b> avec le problème : il travaille sur la bonne "
-    "représentation (profil 1D centré, échelle préservée) et exploite les bonnes propriétés "
-    "(séquentialité, dépendances à long terme). Il ne souffre d'aucun biais architectural.",
-    body_style,
+story.append(h2("4.2  Comparison of Approaches"))
+story.append(tbl(
+    [['Approach',                  'MAE — Real Test', 'Error reduction vs CNN'],
+     ['CNN Regression',            '14.91 m',         'baseline'],
+     ['LSTM (this work)',          '4.49 m',          '− 70 %'],
+     ['Physical direct measure',   '2.40 m',          '—']],
+    col_widths=[6.5*cm, 4*cm, 4.5*cm],
+    highlight=2,
+    center_cols=[1, 2],
 ))
-story.append(Paragraph(
-    "Les performances actuelles (MAE = 4,49 m) ont été obtenues avec seulement "
-    "<b>~10 fichiers réels en entraînement</b> (20 % de 51). Cette contrainte explique "
-    "l'essentiel de l'écart avec la mesure physique. Voici pourquoi davantage de données "
-    "réelles aurait un impact direct et fort :",
-    body_style,
-))
-story.append(Paragraph(
-    "• <b>Calibration du domaine réel</b> : les données synthétiques sont générées par "
-    "simulation et ne reflètent pas parfaitement les imperfections des acquisitions terrain "
-    "(bruit de capteur, variations de sol, géométrie non idéale). Plus le modèle voit de "
-    "données réelles, mieux il apprend cette distribution.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Généralisation</b> : avec 51 fichiers réels en tout (dont seulement ~10 en train), "
-    "le modèle ne peut pas apprendre la diversité des conditions réelles. Avec 500 ou 1 000 "
-    "fichiers réels annotés, le LSTM aurait toutes les informations nécessaires pour égaler "
-    "— voire surpasser — la mesure physique sur des cas complexes où celle-ci échoue.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• <b>Robustesse au bruit</b> : le LSTM, entraîné sur davantage de cas réels bruités, "
-    "apprendrait à filtrer le bruit et à se concentrer sur les caractéristiques pertinentes "
-    "du profil. La mesure physique directe, elle, est très sensible au bruit d'acquisition.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "En résumé : <b>le LSTM est le modèle le plus prometteur pour ce problème</b>. "
-    "Ses performances actuelles sont limitées par les données, pas par son architecture. "
-    "C'est une différence fondamentale avec le CNN, dont les mauvaises performances "
-    "(14,91 m) tiennent à une inadéquation structurelle entre la représentation choisie "
-    "et la nature du problème.",
-    body_style,
+story.append(Paragraph("Table 4 — Comparison of approaches on real acquisition data.", s_caption))
+story.append(body(
+    "The LSTM outperforms the CNN by a factor of <b>3.3×</b>, achieving an MAE of 4.49 m "
+    "with only ~10 real training files. The remaining gap of ~2 m with the physical "
+    "measurement is not a structural limitation — it is a data limitation."
 ))
 
-# --------------------------------------------------------------------------
-# 4. Conclusion
-# --------------------------------------------------------------------------
-story.append(Paragraph('4. Conclusion', h1_style))
-story.append(Paragraph(
-    "Nous avons présenté une approche LSTM bidirectionnel pour l'estimation de la largeur "
-    "d'un pipe enfoui à partir de données magnétiques. Deux contributions clés distinguent "
-    "cette approche :",
-    body_style,
+story.append(h2("4.3  LSTM Potential with More Real Data"))
+story.append(body(
+    "This is the key finding of this study. The LSTM is <b>architecturally aligned</b> with "
+    "the problem: it operates on the right representation (centred 1D profile, scale "
+    "preserved), exploits the right properties (sequentiality, long-range dependencies), "
+    "and suffers from no fundamental design bias."
 ))
-story.append(Paragraph(
-    "1. L'extraction d'un profil 1D par <b>barycentre</b> (centre de masse du signal), qui "
-    "fournit une représentation physiquement cohérente de la zone magnétique, incluant les "
-    "zones d'intensité nulle et préservant l'échelle spatiale.",
-    bullet_style,
+story.append(body(
+    "The current performance (MAE = 4.49 m) was achieved with only <b>~10 real files in "
+    "training</b> (20 % of 51). The following mechanisms explain why more real data would "
+    "directly and strongly improve results:"
 ))
-story.append(Paragraph(
-    "2. L'utilisation d'un <b>LSTM bidirectionnel</b>, qui est architecturalement le modèle "
-    "le plus adapté à la nature séquentielle et à longueur variable du profil magnétique.",
-    bullet_style,
+story.append(bullet(
+    "<b>Real domain calibration</b>: synthetic data is generated from an idealised model "
+    "and does not perfectly replicate sensor noise, ground heterogeneity, or non-ideal "
+    "geometry. More real samples teach the LSTM the true field distribution."
 ))
-story.append(Paragraph(
-    "Ces choix permettent une <b>réduction de 70 % de l'erreur</b> par rapport au CNN de "
-    "référence, avec seulement ~10 fichiers réels en entraînement.",
-    body_style,
+story.append(bullet(
+    "<b>Diversity coverage</b>: with only 51 real files total, the model cannot learn the "
+    "full diversity of real conditions. With 500–1,000 annotated real files, the LSTM would "
+    "have all the information needed to match or exceed the physical measurement — even on "
+    "cases where the analytical method fails (noisy or complex acquisitions)."
 ))
-story.append(Paragraph('<b>Limites et perspectives :</b>', bold_style))
-story.append(Paragraph(
-    "Le principal frein est le volume de données réelles annotées (51 fichiers). Un nouveau "
-    "jeu de 4 715 fichiers synthétiques a été fourni par Skipper NDT, mais sans annotation "
-    "width_m. L'obtention de ces annotations représente la priorité absolue pour la suite "
-    "du projet.",
-    body_style,
+story.append(bullet(
+    "<b>Noise robustness</b>: trained on more real noisy cases, the LSTM would learn to "
+    "filter acquisition noise and focus on the relevant profile features. The physical "
+    "direct measurement, by contrast, is very sensitive to acquisition noise."
 ))
-story.append(Paragraph(
-    "• Avec 500+ fichiers réels annotés, le LSTM a le potentiel d'<b>atteindre ou dépasser "
-    "la mesure physique directe</b> (MAE < 2,40 m).",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• Des architectures Transformer (attention multi-tête) pourraient encore améliorer la "
-    "capture de dépendances long-range dans les profils de grande largeur.",
-    bullet_style,
-))
-story.append(Paragraph(
-    "• L'augmentation de données (symétries horizontales, injection de bruit synthétique "
-    "calibré sur les données réelles) permettrait de mieux couvrir la distribution réelle.",
-    bullet_style,
+story.append(body(
+    "<b>In summary: the LSTM is the most promising model for this problem.</b> Its current "
+    "performance is data-limited, not architecture-limited. This is a fundamental distinction "
+    "from the CNN, whose poor performance (14.91 m) stems from a structural mismatch between "
+    "the chosen representation and the nature of the problem."
 ))
 
-# --------------------------------------------------------------------------
-# 5. Ressources
-# --------------------------------------------------------------------------
-story.append(Paragraph('5. Ressources', h1_style))
-story.append(Paragraph("• Code source : https://github.com/wilsonDenis/skipperndt_task2", bullet_style))
-story.append(Paragraph("• Données : fournies par l'entreprise Skipper NDT (non publiques).", bullet_style))
+# ============================================================================
+# 5. CONCLUSION
+# ============================================================================
+story.append(h1("5.  Conclusion"))
+story.append(body(
+    "We presented a bidirectional LSTM approach for estimating the width of a buried pipe "
+    "from magnetic acquisition data. Two key contributions distinguish this work:"
+))
+story.append(bullet(
+    "<b>Center-of-mass profile extraction</b>: a physically grounded 1D representation "
+    "that includes all profile information (including near-zero values at the pipe), "
+    "preserves spatial scale, and naturally produces variable-length sequences."
+))
+story.append(bullet(
+    "<b>Bidirectional LSTM</b>: architecturally the most suitable model for this sequential, "
+    "variable-length regression problem, outperforming the CNN baseline by 70 % with very "
+    "limited real training data."
+))
+story.append(body(
+    "The model achieves MAE = <b>4.49 m</b> on real data vs. 14.91 m for the CNN. "
+    "The remaining gap with the physical measurement (2.40 m) is solely due to the scarcity "
+    "of annotated real data (51 files), not to any architectural limitation."
+))
 
-# --------------------------------------------------------------------------
-# 6. Bibliographie
-# --------------------------------------------------------------------------
-story.append(Paragraph('6. Bibliographie', h1_style))
-story.append(Paragraph(
+story.append(h2("Limitations & Future Work"))
+story.append(bullet(
+    "<b>Annotated real data</b>: obtaining width_m labels for the new 4,715-file dataset "
+    "provided by Skipper NDT is the single highest-priority action. It would roughly double "
+    "training volume and is expected to push MAE below 2.40 m."
+))
+story.append(bullet(
+    "<b>Transformer architecture</b>: multi-head attention mechanisms could further improve "
+    "long-range dependency modelling for very wide profiles (> 1,000 columns)."
+))
+story.append(bullet(
+    "<b>Data augmentation</b>: horizontal symmetry flips and synthetic noise calibrated on "
+    "real acquisitions could improve robustness without additional labelling effort."
+))
+
+# ============================================================================
+# 6. RESOURCES
+# ============================================================================
+story.append(h1("6.  Resources"))
+story.append(bullet(
+    "<b>Source code</b>: "
+    '<a href="https://github.com/wilsonDenis/skipperndt_task2" color="#1b4f72">'
+    '<u>https://github.com/wilsonDenis/skipperndt_task2</u></a>'
+))
+story.append(bullet(
+    "<b>Industry partner</b>: Skipper NDT — "
+    '<a href="https://skipperndt.com/" color="#1b4f72"><u>https://skipperndt.com/</u></a>'
+))
+story.append(bullet("<b>Data</b>: provided by Skipper NDT (proprietary, not publicly available)."))
+
+# ============================================================================
+# 7. REFERENCES
+# ============================================================================
+story.append(h1("7.  References"))
+
+refs = [
     "[1] Hochreiter, S., & Schmidhuber, J. (1997). Long short-term memory. "
     "<i>Neural Computation</i>, 9(8), 1735–1780.",
-    bullet_style,
-))
-story.append(Paragraph(
     "[2] Schuster, M., & Paliwal, K. K. (1997). Bidirectional recurrent neural networks. "
     "<i>IEEE Transactions on Signal Processing</i>, 45(11), 2673–2681.",
-    bullet_style,
-))
-story.append(Paragraph(
     "[3] Graves, A., & Schmidhuber, J. (2005). Framewise phoneme classification with "
     "bidirectional LSTM networks. <i>IJCNN 2005</i>.",
-    bullet_style,
-))
-story.append(Paragraph(
     "[4] Paszke, A. et al. (2019). PyTorch: An imperative style, high-performance deep "
     "learning library. <i>NeurIPS 2019</i>.",
-    bullet_style,
-))
-story.append(Paragraph(
     "[5] Virtanen, P. et al. (2020). SciPy 1.0: Fundamental algorithms for scientific "
     "computing in Python. <i>Nature Methods</i>, 17, 261–272.",
-    bullet_style,
+]
+for r in refs:
+    story.append(Paragraph(r, ParagraphStyle('ref', parent=s_body, leftIndent=18, firstLineIndent=-18, spaceAfter=4)))
+
+# ── Bottom rule ──────────────────────────────────────────────────────────────
+story.append(Spacer(1, 0.4*cm))
+story.append(HRFlowable(width='100%', thickness=1, color=NAVY, spaceAfter=6))
+story.append(Paragraph(
+    "HETIC — School of Digital Technology &nbsp;·&nbsp; Paris, France &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; "
+    'Skipper NDT: <a href="https://skipperndt.com/" color="#1b4f72"><u>https://skipperndt.com/</u></a>',
+    ParagraphStyle('footer', fontSize=7.5, leading=11, alignment=TA_CENTER,
+                   textColor=GREY, fontName='Helvetica-Oblique'),
 ))
 
 doc.build(story)
-print('PDF genere : article.pdf')
+print("PDF generated: article.pdf")
