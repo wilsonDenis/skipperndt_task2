@@ -369,15 +369,15 @@ story.append(Paragraph(
 story.append(Paragraph("Figure 1 — LSTMWidth model architecture.", s_caption))
 
 story.append(tbl(
-    [['Hyperparameter',      'Value', 'Rationale'],
-     ['hidden_size',         '64',    'Sufficient to encode profile structure without overfit'],
-     ['num_layers',          '2',     'Hierarchical representation: local transitions + global shape'],
-     ['dropout',             '0.3',   'Regularisation — critical with few real training samples'],
-     ['Gradient clipping',   '1.0',   'Prevents gradient explosion on long sequences'],
-     ['Early stopping patience', '10','Saves best model; avoids overfit on synthetic data'],
-     ['Learning rate',       '0.001', 'Adam optimiser with ReduceLROnPlateau (factor 0.5, patience 4)'],
-     ['Batch size',          '32',    'Dynamic padding to max sequence length in each batch']],
-    col_widths=[4.5*cm, 2.5*cm, 8*cm],
+    [['Hyperparameter',          'Value', 'Rationale'],
+     ['hidden_size',             '64',    'Sufficient to encode profile structure without overfitting'],
+     ['num_layers',              '2',     'Hierarchical repr.: local transitions + global shape'],
+     ['dropout',                 '0.3',   'Regularisation — critical with few real training samples'],
+     ['Gradient clipping',       '1.0',   'Prevents gradient explosion on long sequences'],
+     ['Early stopping patience', '10',    'Saves best model; avoids overfit on synthetic data'],
+     ['Learning rate',           '0.001', 'Adam + ReduceLROnPlateau (factor 0.5, patience 4)'],
+     ['Batch size',              '32',    'Dynamic padding to max length within each batch']],
+    col_widths=[5*cm, 2*cm, 9.6*cm],
 ))
 story.append(Paragraph("Table 2 — Hyperparameters and design rationale.", s_caption))
 
