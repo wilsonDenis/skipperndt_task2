@@ -137,4 +137,10 @@ Le LSTM réduit l'erreur du CNN de **70 %** et se rapproche de la mesure physiqu
 
 ## Contributeurs
 
-- **Wilson Denis Bahun** — HETIC, promotion 2025
+| Nom | Email |
+|-----|-------|
+| AHMED Filali | ahmedfillali905@gmail.com |
+| FOLLIVI Edem Roberto | robertfollivi49@gmail.com |
+| MAFORIKAN Harald | haraldmaforikan@gmail.com |
+| TAMBOU NGUEMO Franck Kevin | ktambou99@gmail.com |
+| WILSON-BAHUN A. Denis | wilsonvry@gmail.com |
