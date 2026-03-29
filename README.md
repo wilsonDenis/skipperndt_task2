@@ -1,144 +1,201 @@
-# Tâche 2 — Estimation de la Largeur de Zone Magnétique (LSTM)
+# Task 2 — Magnetic Zone Width Estimation (Bidirectional LSTM)
 
-Estimation de la largeur effective de la zone d'influence magnétique d'un pipe
-à partir de cartes de champ magnétique 4 canaux, en utilisant un **LSTM bidirectionnel**.
+> **Industry partner:** [Skipper NDT](https://skipperndt.com/) · **School:** HETIC — École du Numérique, Paris
 
-## Problème
+Estimate the effective width of a pipe's magnetic influence zone from 4-channel magnetic field maps using a **bidirectional LSTM** with a centre-of-mass profile extraction strategy.
 
-| Propriété | Valeur |
-|-----------|--------|
-| Type | Régression supervisée |
-| Entrée | Fichiers `.npz` multicanaux (4 canaux : Bx, By, Bz, Norme) |
-| Sortie | Largeur en mètres (plage : 5 à 80 m) |
-| Objectif | MAE < 1 m |
+---
 
-## Approche LSTM
+## Problem Statement
 
-Contrairement au CNN qui redimensionne l'image à 224×224 (perte d'échelle physique),
-le LSTM travaille sur un **profil 1D centré** extrait de la carte magnétique :
+| Property | Value |
+|----------|-------|
+| Task | Supervised regression |
+| Input | Multi-channel `.npz` files (4 channels: Bx, By, Bz, Norm) |
+| Output | Width in metres (range: 5 – 80 m) |
+| Target | MAE < 1 m |
 
-1. Calcul de la norme des 4 canaux magnétiques
-2. Normalisation entre 0 et 1
-3. Localisation du centre de masse du signal (scipy `center_of_mass`)
-4. Extraction d'une tranche de 5 lignes autour de ce centre
-5. Moyenne colonne par colonne → séquence 1D de longueur variable
-6. Enrichissement avec 3 métadonnées : nb pixels actifs, hauteur, largeur image
+---
 
-L'information d'échelle physique (1 pixel ≈ 20 cm) est ainsi préservée.
+## Approach
 
-## Architecture
+Unlike CNN-based models that resize images to a fixed 224×224 grid (losing physical scale), this LSTM operates on a **variable-length 1D profile** extracted from the magnetic map:
+
+1. Compute the norm across all 4 magnetic channels
+2. Normalise values between 0 and 1
+3. Locate the **centre of mass** of the signal (`scipy.ndimage.center_of_mass`)
+4. Extract a 5-row slice centred on that position
+5. Average column-by-column → 1D sequence of variable length
+6. Enrich with 3 metadata features: active pixel count, image height, image width
+
+Since 1 pixel ≈ 20 cm, physical scale information is fully preserved.
+
+---
+
+## Model Architecture
 
 ```
-Séquence (L, 1)  +  Meta (3,)
-        |
-   LSTM bidirectionnel
-   hidden_size=64, num_layers=2, dropout=0.3
-        |
-   Concaténation états cachés [avant | arrière] + meta
-   Taille : 64×2 + 3 = 131
-        |
-   MLP : Linear(131, 64) → ReLU → Dropout(0.3)
-      → Linear(64, 32)   → ReLU
-      → Linear(32, 1)
-        |
-   Largeur prédite (mètres)
+Sequence (L, 1)  +  Metadata (3,)
+        │
+  Bidirectional LSTM
+  hidden_size=64 · num_layers=2 · dropout=0.3
+        │
+  Concat [forward | backward] hidden states + metadata
+  Size: 64×2 + 3 = 131
+        │
+  MLP regressor:
+    Linear(131 → 64) → ReLU → Dropout(0.3)
+    Linear(64  → 32) → ReLU
+    Linear(32  →  1)
+        │
+  Predicted width (metres)
 ```
 
-## Structure du projet
+---
+
+## Project Structure
 
 ```
 tache2_lstm/
-├── main.py                  # Point d'entrée : charge, entraîne, évalue
-├── requirements.txt         # Dépendances Python
+├── main.py              # Entry point: load data, train, evaluate
+├── requirements.txt     # Python dependencies
 ├── src/
-│   ├── config.py            # Hyperparamètres et chemins
-│   ├── donnees.py           # Extraction séquences + Dataset + DataLoaders
-│   ├── modele.py            # Architecture LSTMWidth
-│   ├── entrainement.py      # Boucle d'entraînement + early stopping
-│   └── evaluation.py        # Métriques MAE/RMSE + graphiques
-└── resultats/               # Généré automatiquement
-    ├── modele_lstm_width.pth
-    └── courbes_lstm_width.png
+│   ├── config.py        # Hyperparameters and paths
+│   ├── data.py          # Sequence extraction, Dataset, DataLoaders
+│   ├── model.py         # LSTMWidth architecture
+│   ├── training.py      # Training loop + early stopping
+│   └── evaluation.py    # MAE / RMSE metrics + learning curves
+└── results/             # Auto-created on first run
+    ├── lstm_width_model.pth
+    └── lstm_width_curves.png
 ```
 
-## Données requises
+---
 
-Les données ne sont pas incluses dans ce dépôt. Le projet attend la structure suivante
-**en dehors** du dossier `tache2_lstm/`, dans un dossier frère `skipperndt/` :
+## Prerequisites
 
-```
-skipperndt/
-├── data/nettoye/avec_fourreau/   ← fichiers .npz synthétiques
-└── real_data/
-    ├── pipe_presence_width_detection_label.csv
-    └── real_data_*.npz           ← fichiers .npz réels
-```
+- Python 3.9+
+- pip
 
-Le CSV doit contenir les colonnes : `field_file`, `label`, `width_m`.
+---
 
 ## Installation
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/wilsonDenis/skipperndt_task2.git
+cd skipperndt_task2
+```
+
+**2. (Recommended) Create a virtual environment**
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # macOS / Linux
+.venv\Scripts\activate         # Windows
+```
+
+**3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Ou manuellement :
+---
 
-```bash
-pip install torch numpy pandas matplotlib scikit-learn scipy
+## Data Setup
+
+The dataset is **not included** in this repository (proprietary data from Skipper NDT).
+
+Place the data in a sibling folder named `skipperndt/`, at the same level as `tache2_lstm/`:
+
+```
+parent_folder/
+├── tache2_lstm/          ← this repository
+└── skipperndt/
+    ├── data/
+    │   └── nettoye/
+    │       └── avec_fourreau/   ← synthetic .npz files
+    └── real_data/
+        ├── pipe_presence_width_detection_label.csv
+        └── real_data_*.npz      ← real .npz files
 ```
 
-## Utilisation
+The CSV file must contain the columns: `field_file`, `label`, `width_m`.
+
+---
+
+## Usage
 
 ```bash
 python main.py
 ```
 
-Le script affiche les métriques à chaque époque et sauvegarde dans `resultats/` :
-- `modele_lstm_width.pth` — poids du meilleur modèle
-- `courbes_lstm_width.png` — courbe d'apprentissage train/val
+The script will:
+1. Load and preprocess synthetic and real data
+2. Build train / validation / test DataLoaders
+3. Train the model with early stopping
+4. Print MAE and RMSE for each split
+5. Save results to the `results/` folder
 
-## Hyperparamètres
+**Output files:**
+| File | Description |
+|------|-------------|
+| `results/lstm_width_model.pth` | Best model weights |
+| `results/lstm_width_curves.png` | Train / val learning curve |
 
-| Paramètre          | Valeur | Description                            |
-|--------------------|:------:|----------------------------------------|
-| NOMBRE_EPOQUES     | 50     | Maximum d'époques                      |
-| TAILLE_LOT         | 32     | Batch size                             |
-| TAUX_APPRENTISSAGE | 0.001  | Learning rate initial (Adam)           |
-| PATIENCE           | 10     | Early stopping                         |
-| MAX_SEQ_LEN        | 3000   | Longueur max de séquence (colonnes)    |
-| hidden_size        | 64     | Taille état caché LSTM (par direction) |
-| num_layers         | 2      | Nombre de couches LSTM empilées        |
+---
 
-## Répartition des données
+## Hyperparameters
 
-| Ensemble      | Données synthétiques | Données réelles |
-|---------------|:--------------------:|:---------------:|
-| Entraînement  | 85 %                 | 20 %            |
-| Validation    | 15 %                 | 20 %            |
-| Test          | —                    | 60 %            |
+| Parameter | Value | Description |
+|-----------|:-----:|-------------|
+| NUM_EPOCHS | 50 | Maximum number of training epochs |
+| BATCH_SIZE | 32 | Mini-batch size |
+| LEARNING_RATE | 0.001 | Initial learning rate (Adam) |
+| PATIENCE | 10 | Early stopping patience |
+| MAX_SEQ_LEN | 3000 | Maximum sequence length (columns) |
+| hidden_size | 64 | LSTM hidden state size (per direction) |
+| num_layers | 2 | Number of stacked LSTM layers |
 
-## Résultats
+---
 
-| Jeu de données    | MAE     | RMSE    |
-|-------------------|:-------:|:-------:|
-| Val (Synth+Réel)  | —       | —       |
-| Test Réel         | 4.49 m  | 6.37 m  |
+## Data Split
 
-### Comparaison des approches
+| Split | Synthetic data | Real data |
+|-------|:--------------:|:---------:|
+| Train | 85 % | 20 % |
+| Validation | 15 % | 20 % |
+| Test | — | 60 % |
 
-| Modèle           | MAE (Test Réel) |
-|------------------|:---------------:|
-| CNN Régression   | 14.91 m         |
-| **LSTM (ce modèle)** | **4.49 m**  |
-| Mesure Physique  | 2.40 m          |
+Real data is included in training and validation to improve generalisation. The model is never evaluated on data it was trained on.
 
-Le LSTM réduit l'erreur du CNN de **70 %** et se rapproche de la mesure physique directe.
+---
 
-## Contributeurs
+## Results
 
-| Nom | Email |
-|-----|-------|
+| Split | MAE | RMSE |
+|-------|:---:|:----:|
+| Val (Synth + Real) | — | — |
+| Real Test | 4.49 m | 6.37 m |
+
+### Comparison
+
+| Model | MAE (Real Test) |
+|-------|:---------------:|
+| CNN Regression | 14.91 m |
+| **LSTM — this model** | **4.49 m** |
+| Physical Measurement | 2.40 m |
+
+The LSTM reduces CNN error by **70 %**. With more annotated real data, it is expected to approach or match the physical measurement baseline.
+
+---
+
+## Contributors
+
+| Name | Email |
+|------|-------|
 | AHMED Filali | ahmedfillali905@gmail.com |
 | FOLLIVI Edem Roberto | robertfollivi49@gmail.com |
 | MAFORIKAN Harald | haraldmaforikan@gmail.com |
